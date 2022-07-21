@@ -45,17 +45,3 @@ def get_products(service_code, filter_path, sku):
 
     aws_price = get_price(response_iterator, sku)
     return aws_price
-
-
-if __name__ == '__main__':
-    service_code_ec2 = 'AmazonEC2'
-    service_code_eks = 'AmazonEKS'
-    ec2_filter_path = './aws_price/resources/filters/ec2_filters.json'
-    ebs_filter_path = './aws_price/resources/filters/ebs_filters.json'
-    eks_filter_path = './aws_price/resources/filters/eks_filters.json'
-    ec2_sku = 'PZHVQ3KFPA3RHA5V'
-    ebs_sku = 'HYU9KEWRBJTDDSCK'
-    eks_sku = '8HAE52ZNS3QC3Q8Q'
-    ec2_price = get_products(service_code_ec2, ec2_filter_path, ec2_sku)
-    ebs_price = get_products(service_code_ec2, ebs_filter_path, ebs_sku)
-    eks_price = get_products(service_code_eks, eks_filter_path, eks_sku)
