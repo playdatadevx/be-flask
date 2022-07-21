@@ -1,0 +1,19 @@
+{
+    "filters":[
+        {
+            "Type": "TERM_MATCH",
+            "Field": "location",
+            "Value": "Asia Pacific (Seoul)"
+        },
+        {
+            "Type": "TERM_MATCH",
+            "Field": "productFamily",
+            "Value": "Storage"
+        },
+        {
+            "Type": "TERM_MATCH",
+            "Field": "usagetype",
+            "Value": "APN2-EBS:VolumeUsage.gp2"
+        }
+    ]
+}

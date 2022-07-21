@@ -1,0 +1,44 @@
+{
+    "filters":[
+        {
+            "Type": "TERM_MATCH",
+            "Field": "location",
+            "Value": "Asia Pacific (Seoul)"
+        },
+        {
+            "Type": "TERM_MATCH",
+            "Field": "instanceType",
+            "Value": "t3.small"
+        },
+        {
+            "Type": "TERM_MATCH",
+            "Field": "operatingSystem",
+            "Value": "Linux"
+        },
+        {
+            "Type": "TERM_MATCH",
+            "Field": "vcpu",
+            "Value": "2"
+        },
+        {
+            "Type": "TERM_MATCH",
+            "Field": "capacitystatus",
+            "Value": "Used"
+        },
+        {
+            "Type": "TERM_MATCH",
+            "Field": "PurchaseOption",
+            "Value": "No Upfront"
+        },
+        {
+            "Type": "TERM_MATCH",
+            "Field": "marketoption",
+            "Value": "OnDemand"
+        },
+        {
+            "Type": "TERM_MATCH",
+            "Field": "preInstalledSw",
+            "Value": "NA"
+        }
+    ]
+}
