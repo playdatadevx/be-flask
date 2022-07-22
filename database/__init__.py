@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-class Mysql:
+class Database:
     def __init__(self):
         host = os.environ.get('HOST')
         user = os.environ.get('USER')

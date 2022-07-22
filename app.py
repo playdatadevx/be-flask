@@ -5,11 +5,11 @@ import time
 import yaml
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, url_for, request
-from './database' import Mysql
-from './Price' import Price
+from database import Database
+from price import Price
 app = Flask(__name__)
 
-with open("./aws_price/resources/config.yaml", "r") as config:
+with open("./price/resources/config.yaml", "r") as config:
     aws_config = yaml.load(config)
 
 
