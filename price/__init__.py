@@ -26,7 +26,7 @@ class Price:
                 self.set_data(price, unit, description)
         return aws_price
 
-    def get_products(service_code, filter_path, sku):
+    def get_products(self, service_code, filter_path, sku):
         pricing_client = boto3.client('pricing', region_name='us-east-1')
         paginator = pricing_client.get_paginator('get_products')
 
