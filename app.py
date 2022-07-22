@@ -10,10 +10,10 @@ from price import Price
 app = Flask(__name__)
 
 with open("./price/resources/config.yaml", "r") as config:
-    aws_config = yaml.load(config)
+    aws_config = yaml.load(config, Loader=yaml.FullLoader)
 
 
-def insert_data_to_db(self):
+def insert_data_to_db():
     service_code_ec2 = aws_config.get('service_code_ec2')
     service_code_eks = aws_config.get('service_code_eks')
     ec2_filter_path = aws_config.get('ec2_filter_path')
@@ -35,7 +35,7 @@ def insert_data_to_db(self):
 
 
 if __name__ == '__main__':
-    sched = BlockingScheduler()
-    scheduler.add_job(insert_data_to_db, 'interval', week=2)
-    sched.start()
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(insert_data_to_db, 'interval', weeks=2)
+    scheduler.start()
     app.run(port=5000)
