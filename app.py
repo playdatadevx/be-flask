@@ -5,10 +5,9 @@ import time
 import yaml
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, url_for, request
-from './database/database' import Mysql
-
+from './database' import Mysql
+from './Price' import Price
 app = Flask(__name__)
-
 
 with open("./aws_price/resources/config.yaml", "r") as config:
     aws_config = yaml.load(config)
@@ -24,9 +23,10 @@ def insert_data_to_db(self):
     ebs_sku = aws_config.get('ebs_sku')
     eks_sku = aws_config.get('eks_sku')
 
-    ec2_price = get_products(service_code_ec2, ec2_filter_path, ec2_sku)
-    ebs_price = get_products(service_code_ec2, ebs_filter_path, ebs_sku)
-    eks_price = get_products(service_code_eks, eks_filter_path, eks_sku)
+    price = Price()
+    ec2_price = price.get_products(service_code_ec2, ec2_filter_path, ec2_sku)
+    ebs_price = price.get_products(service_code_ec2, ebs_filter_path, ebs_sku)
+    eks_price = price.get_products(service_code_eks, eks_filter_path, eks_sku)
 
     mysql = Mysql()
     mysql.insert_price(ec2_price.price, ec2_price.unit, ec2_price.description)
