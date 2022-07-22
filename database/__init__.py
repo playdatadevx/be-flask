@@ -17,7 +17,7 @@ class Database:
         self.curs = self.conn.cursor()
 
     def insert_price(self, price, unit, description):
-        sql = f'INSERT INTO price (price, unit, aws_service) VALUES ({price}, {unit}, {description})'
+        sql = f'INSERT INTO price (price, unit, aws_service) VALUES ({price}, "{unit}", "{description}")'
         self.curs.execute(sql)
         self.conn.commit()
 
