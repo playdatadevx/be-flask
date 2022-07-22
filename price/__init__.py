@@ -24,7 +24,7 @@ class Price:
                 unit = list(price_per_unit.keys())[0]
                 price = price_per_unit.get(unit)
                 self.set_data(price, unit, description)
-        return aws_price
+        return self
 
     def get_products(self, service_code, filter_path, sku):
         pricing_client = boto3.client('pricing', region_name='us-east-1')
@@ -40,5 +40,5 @@ class Price:
             }
         )
 
-        aws_price = get_price(response_iterator, sku)
+        aws_price = self.get_price(response_iterator, sku)
         return aws_price

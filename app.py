@@ -23,18 +23,26 @@ def insert_data_to_db():
     ebs_sku = aws_config.get('ebs_sku')
     eks_sku = aws_config.get('eks_sku')
 
-    price = Price()
-    ec2_price = price.get_products(service_code_ec2, ec2_filter_path, ec2_sku)
-    ebs_price = price.get_products(service_code_ec2, ebs_filter_path, ebs_sku)
-    eks_price = price.get_products(service_code_eks, eks_filter_path, eks_sku)
+    ec2_price = Price()
+    ebs_price = Price()
+    eks_price = Price()
 
-    mysql = Mysql()
-    mysql.insert_price(ec2_price.price, ec2_price.unit, ec2_price.description)
-    mysql.insert_price(ebs_price.price, ebs_price.unit, ebs_price.description)
-    mysql.insert_price(eks_price.price, eks_price.unit, eks_price.description)
+    ec2_price.get_products(service_code_ec2, ec2_filter_path, ec2_sku)
+    ebs_price.get_products(service_code_ec2, ebs_filter_path, ebs_sku)
+    eks_price.get_products(service_code_eks, eks_filter_path, eks_sku)
+
+    database = Database()
+    database.insert_price(ec2_price.price, ec2_price.unit,
+                          ec2_price.description)
+    database.insert_price(ebs_price.price, ebs_price.unit,
+                          ebs_price.description)
+    database.insert_price(eks_price.price, eks_price.unit,
+                          eks_price.description)
 
 
 if __name__ == '__main__':
+    os.environ['AWS_DEFAULT_REGION'] = aws_config.get('region')
+    os.environ['AWS_PROFILE'] = aws_config.get('profile')
     scheduler = BackgroundScheduler()
     scheduler.add_job(insert_data_to_db, 'interval', weeks=2)
     scheduler.start()

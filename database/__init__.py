@@ -11,7 +11,7 @@ class Database:
         user = os.environ.get('USER')
         password = os.environ.get('PASSWORD')
         database = os.environ.get('DATABASE')
-        port = os.environ.get('PORT')
+        port = int(os.environ.get('PORT'))
         self.conn = pymysql.connect(
             host=host, user=user, password=password, db=database, port=port, charset='utf8')
         self.curs = self.conn.cursor()
