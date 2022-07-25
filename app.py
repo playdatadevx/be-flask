@@ -1,13 +1,32 @@
 
+import json
 import os
 import requests
-import time
 import yaml
 from apscheduler.schedulers.background import BackgroundScheduler
-from flask import Flask, url_for, request
 from database import Database
+from dotenv import load_dotenv
+from flask import Flask, request
+from keycloak import Client
 from price import Price
+from types import SimpleNamespace
+
 app = Flask(__name__)
+keycloak_client = Client()
+
+load_dotenv()
+keycloak_server = os.environ.get('KEYCLOAK_SERVER')
+realm = os.environ.get('REALM')
+client_id = os.environ.get('CLIENT_ID')
+client_secret = os.environ.get('CLENT_SECRET')
+secret_key = os.environ.get('SECRET_KEY')
+keyclock_endpoint = f'http://{keycloak_server}/auth/realms/{realm}'
+keyclock_token_endpoint = keyclock_endpoint + \
+    f'/protocol/openid-connect/userinfo'
+keyclock_login_endpoint = keyclock_endpoint + \
+    f'/protocol/openid-connect/token'
+keyclock_logout_endpoint = keyclock_endpoint + \
+    f'/protocol/openid-connect/logout'
 
 with open("./price/resources/config.yaml", "r") as config:
     aws_config = yaml.load(config, Loader=yaml.FullLoader)
@@ -38,6 +57,48 @@ def insert_data_to_db():
                           ebs_price.description)
     database.insert_price(eks_price.price, eks_price.unit,
                           eks_price.description)
+
+
+@app.route('/login', methods=['POST'])
+def login():
+    params = json.loads(request.get_data(),
+                        object_hook=lambda d: SimpleNamespace(**d))
+    if len(str(params)) == 0:
+        return 'Bad Request', 400
+    response = requests.post(keyclock_login_endpoint,
+                             headers={
+                                 'Content-Type': 'application/x-www-form-urlencoded'},
+                             data={
+                                 'username': params.username,
+                                 'password': params.password,
+                                 'client_id': client_id,
+                                 'client_secret': client_secret,
+                                 'grant_type': 'password'
+                             }
+                             )
+    if not response.ok:
+        return "Unauthorized", 401
+    return str(response), 200
+
+
+@ app.route('/logout', methods=['POST'])
+def logout():
+    token = request.headers.get('Authorization')
+    params = json.loads(request.get_data(),
+                        object_hook=lambda d: SimpleNamespace(**d))
+    response = requests.post(keyclock_logout_endpoint,
+                             headers={
+                                 'Authorization': f'Bearer {token}',
+                                 'Content-Type': 'application/x-www-form-urlencoded'},
+                             data={
+                                 'client_id': client_id,
+                                 'refresh_token': params.refresh_token,
+                             }
+                             )
+    if not response.ok:
+        return "Unauthorized", 401
+
+    return "Hello, World!", 200
 
 
 if __name__ == '__main__':
