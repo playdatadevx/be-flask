@@ -16,27 +16,21 @@ class Database:
             host=host, user=user, password=password, db=database, port=port, charset='utf8')
         self.curs = self.conn.cursor()
 
-    def insert_price(self, price, unit, description):
-        sql = f'INSERT INTO price (price, unit, aws_service) VALUES ({price}, "{unit}", "{description}")'
+
+    def insert_metric(self, table,*items):
+        prop = {'price':['price,created_at,unit,aws_service','({},"{}","{}","{}")'],
+        'cost':['cost,created_at,unit,app','({},"{}","{}","{}")'],
+        'resource_usage':['resource_usage,metric_id,created_at,unit','({},{},"{}","{}")'],
+        'capacity':['capacity,created_at','({},"{}")'],
+        'metric':['metric','("{}")']}
+
+        sql_row = prop[table][1].format(*items)
+
+        sql = f'INSERT INTO {table} ({prop[table][0]}) VALUES'+ sql_row
         self.curs.execute(sql)
         self.conn.commit()
 
-    def select_price(self):
-        sql = f'SELECT * FROM price'
-        self.curs.execute(sql)
-        self.conn.commit()
-
-    def select_resource_usage(self):
-        sql = f'SELECT * FROM resource_usage '
-        self.curs.execute(sql)
-        self.conn.commit()
-
-    def select_capacity(self):
-        sql = f'SELECT * FROM capacity'
-        self.curs.execute(sql)
-        self.conn.commit()
-
-    def select_metric(self):
-        sql = f'SELECT * FROM metric'
+    def select_all(self,table):
+        sql = f'SELECT * FROM {table}'
         self.curs.execute(sql)
         self.conn.commit()
