@@ -17,11 +17,11 @@ Usage={
 
 url = "https://pm-server.devxmonitor.click/api/v1/query"
 
-def get_usage(url,queries):
+def get_usage(url,queries,headers=None):
     result = {}
     for key,query in queries.items():
         params = {"query" : query}
-        raw = requests.get(url, params=params).json()
+        raw = requests.get(url, params=params,headers=headers).json()
         try:
             total = 0
             raw_datas = raw['data']['result']
