@@ -1,16 +1,52 @@
-
+import json
 import os
 import requests
-import time
 import yaml
 from apscheduler.schedulers.background import BackgroundScheduler
-from flask import Flask, url_for, request
 from database import Database
+from dotenv import load_dotenv
+from flask import Flask, Response, request
 from price import Price
+from types import SimpleNamespace
+import logging
+from datetime import datetime
+
+today = datetime.now().date()
+logging.basicConfig(filename=f'./{today}.log')
+
+
 app = Flask(__name__)
+
+load_dotenv()
+
+keycloak_server = os.environ.get('KEYCLOAK_SERVER')
+realm = os.environ.get('REALM')
+client_id = os.environ.get('CLIENT_ID')
+client_secret = os.environ.get('CLENT_SECRET')
+secret_key = os.environ.get('SECRET_KEY')
+keyclock_endpoint = f'http://{keycloak_server}/auth/realms/{realm}/protocol/openid-connect'
+keyclock_userinfo_endpoint = keyclock_endpoint + '/userinfo'
+keyclock_login_endpoint = keyclock_endpoint + '/token'
+keyclock_logout_endpoint = keyclock_endpoint + '/logout'
 
 with open("./price/resources/config.yaml", "r") as config:
     aws_config = yaml.load(config, Loader=yaml.FullLoader)
+
+
+def check_auth(request):
+    token = request.headers.get('Authorization')
+    params = json.loads(request.get_data(),
+                        object_hook=lambda d: SimpleNamespace(**d))
+    keycloak_response = requests.post(keyclock_userinfo_endpoint,
+                                      headers={
+                                          'Authorization': f'Bearer {token}',
+                                          'Content-Type': 'application/x-www-form-urlencoded'},
+                                      data={
+                                          'client_id': client_id,
+                                          'refresh_token': params.refresh_token,
+                                      }
+                                      )
+    return keycloak_response
 
 
 def insert_data_to_db():
@@ -38,6 +74,91 @@ def insert_data_to_db():
                           ebs_price.description)
     database.insert_price(eks_price.price, eks_price.unit,
                           eks_price.description)
+
+
+@app.route('/login', methods=['POST'])
+def login():
+    try:
+        data = request.get_data()
+        params = json.loads(data, object_hook=lambda d: SimpleNamespace(**d))
+        keycloak_response = requests.post(keyclock_login_endpoint,
+                                          headers={
+                                              'Content-Type': 'application/x-www-form-urlencoded'},
+                                          data={
+                                              'username': params.username,
+                                              'password': params.password,
+                                              'client_id': client_id,
+                                              'client_secret': client_secret,
+                                              'grant_type': 'password'
+                                          }
+                                          )
+        if keycloak_response.status_code == 400:
+            return Response('{"code": 400,"message": "Bad Request"}', status=400)
+        elif keycloak_response.status_code == 401:
+            return Response('{"code": 401,"message": "Unauthorized"}', status=401)
+    except (AttributeError, TypeError, json.decoder.JSONDecodeError):
+        return Response('{"code": 400,"message": "Bad Request"}', status=400)
+    except:
+        return Response('{"code": 500,"message": "Unexpected Error"}', status=500)
+    return str(keycloak_response), 200
+
+
+@ app.route('/logout', methods=['POST'])
+def logout():
+    try:
+        token = request.headers.get('Authorization', keyclock_logout_endpoint)
+        params = json.loads(request.get_data(),
+                            object_hook=lambda d: SimpleNamespace(**d))
+        keycloak_response = requests.post(keyclock_logout_endpoint,
+                                          headers={
+                                              'Authorization': f'Bearer {token}',
+                                              'Content-Type': 'application/x-www-form-urlencoded'},
+                                          data={
+                                              'client_id': client_id,
+                                              'refresh_token': params.refresh_token,
+                                          }
+                                          )
+        if keycloak_response.status_code == 400:
+            return Response('{"code": 400,"message": "Bad Request"}', status=400)
+        elif keycloak_response.status_code == 401:
+            return Response('{"code": 401,"message": "Unauthorized"}', status=401)
+    except (AttributeError, TypeError, json.decoder.JSONDecodeError):
+        return Response('{"code": 400,"message": "Bad Request"}', status=400)
+    except:
+        return Response('{"code": 500,"message": "Unexpected Error"}', status=500)
+    return str(keycloak_response), 200
+
+
+@ app.route('/cost', methods=['GET'])
+def cost():
+    try:
+        keycloak_response = check_auth(request, keyclock_userinfo_endpoint)
+        if keycloak_response.status_code == 400:
+            return Response('{"code": 400,"message": "Bad Request"}', status=400)
+        elif keycloak_response.status_code == 401:
+            return Response('{"code": 401,"message": "Unauthorized"}', status=401)
+    except (AttributeError, TypeError, json.decoder.JSONDecodeError):
+        return Response('{"code": 400,"message": "Bad Request"}', status=400)
+    except:
+        return Response('{"code": 500,"message": "Unexpected Error"}', status=500)
+    # 여기부터 시작
+    return str(keycloak_response), 200
+
+
+@ app.route('/exp-cost', methods=['GET'])
+def exp_cost():
+    try:
+        keycloak_response = check_auth(request, keyclock_userinfo_endpoint)
+        if keycloak_response.status_code == 400:
+            return Response('{"code": 400,"message": "Bad Request"}', status=400)
+        elif keycloak_response.status_code == 401:
+            return Response('{"code": 401,"message": "Unauthorized"}', status=401)
+    except (AttributeError, TypeError, json.decoder.JSONDecodeError):
+        return Response('{"code": 400,"message": "Bad Request"}', status=400)
+    except:
+        return Response('{"code": 500,"message": "Unexpected Error"}', status=500)
+    # 여기부터 시작
+    return str(keycloak_response), 200
 
 
 if __name__ == '__main__':
