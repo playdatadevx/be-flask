@@ -106,7 +106,7 @@ def login():
 @ app.route('/logout', methods=['POST'])
 def logout():
     try:
-        token = request.headers.get('Authorization', keyclock_logout_endpoint)
+        token = request.headers.get('Authorization')
         params = json.loads(request.get_data(),
                             object_hook=lambda d: SimpleNamespace(**d))
         keycloak_response = requests.post(keyclock_logout_endpoint,
@@ -132,32 +132,32 @@ def logout():
 @ app.route('/cost', methods=['GET'])
 def cost():
     try:
-        keycloak_response = check_auth(request, keyclock_userinfo_endpoint)
+        keycloak_response = check_auth(request)
         if keycloak_response.status_code == 400:
             return Response('{"code": 400,"message": "Bad Request"}', status=400)
         elif keycloak_response.status_code == 401:
             return Response('{"code": 401,"message": "Unauthorized"}', status=401)
+        # 여기부터 시작
     except (AttributeError, TypeError, json.decoder.JSONDecodeError):
         return Response('{"code": 400,"message": "Bad Request"}', status=400)
     except:
         return Response('{"code": 500,"message": "Unexpected Error"}', status=500)
-    # 여기부터 시작
     return str(keycloak_response), 200
 
 
 @ app.route('/exp-cost', methods=['GET'])
 def exp_cost():
     try:
-        keycloak_response = check_auth(request, keyclock_userinfo_endpoint)
+        keycloak_response = check_auth(request)
         if keycloak_response.status_code == 400:
             return Response('{"code": 400,"message": "Bad Request"}', status=400)
         elif keycloak_response.status_code == 401:
             return Response('{"code": 401,"message": "Unauthorized"}', status=401)
+    # 여기부터 시작
     except (AttributeError, TypeError, json.decoder.JSONDecodeError):
         return Response('{"code": 400,"message": "Bad Request"}', status=400)
     except:
         return Response('{"code": 500,"message": "Unexpected Error"}', status=500)
-    # 여기부터 시작
     return str(keycloak_response), 200
 
 
