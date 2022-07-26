@@ -86,7 +86,6 @@ def login():
                                      'grant_type': 'password'
                                  }
                                  )
-        print(response.status_code)
     except (AttributeError, TypeError, json.decoder.JSONDecodeError):
         return Response('{"code": 400,"message": "Bad Request"}', status=400)
     if response.status_code == 400:
