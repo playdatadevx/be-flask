@@ -12,7 +12,7 @@ import logging
 from datetime import datetime
 
 today = datetime.now().date()
-logging.basicConfig(filename=f'./{today}.log')
+logging.basicConfig(filename=f'./logs/{today}.log')
 
 
 app = Flask(__name__)
