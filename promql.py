@@ -5,13 +5,13 @@ from database import Database
 
 database = Database()
 
-Capacity = {'cap':'avg(avg_over_time((sum without () (kube_pod_container_status_ready{namespace=~"kube-system", pod=~"aws-node.*"}) / count without ()(kube_pod_container_status_ready{namespace=~"kube-system", pod=~"aws-node.*"}))[5m:5m]))*100'}
+Capacity = {'cap':'avg(avg_over_time((sum without () (kube_pod_container_status_ready{namespace=~"kube-system", pod=~"aws-node.*"}) / count without ()(kube_pod_container_status_ready{namespace=~"kube-system", pod=~"aws-node.*"}))[1h:]))*100'}
 
 Usage={
  'disk':'sum(node_filesystem_size_bytes{kubernetes_node=""} - node_filesystem_avail_bytes{kubernetes_node=""}) by (kubernetes_node) / sum(node_filesystem_avail_bytes{kubernetes_node=""}) by (kubrenetes_node)*100',
  'memory':'avg((node_memory_MemAvailable_bytes + on(instance) group_left(nodename) node_uname_info) / ((node_memory_MemTotal_bytes + on(instance) group_left(nodename) node_uname_info))*100)',
- 'cpu':'((sum by (instance,nodename) (irate(node_cpu_seconds_total{mode!~"guest.*|idle|iowait"}[5m])) + on(instance) group_left(nodename) node_uname_info) - 1)*100',
- 'traffic':'sum (rate(node_network_receive_bytes_total[5m]))/1000',
+ 'cpu':'((sum by (instance,nodename) (irate(node_cpu_seconds_total{mode!~"guest.*|idle|iowait"}[1h])) + on(instance) group_left(nodename) node_uname_info) - 1)*100',
+ 'traffic':'sum (rate(node_network_receive_bytes_total[1h]))/1000',
  'node':'count(kube_node_created)'
 }
 
