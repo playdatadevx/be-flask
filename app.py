@@ -1,4 +1,3 @@
-
 import json
 import os
 import requests
@@ -6,30 +5,42 @@ import yaml
 from apscheduler.schedulers.background import BackgroundScheduler
 from database import Database
 from dotenv import load_dotenv
-from flask import Flask, request
-from keycloak import Client
+from flask import Flask, Response, request
 from price import Price
 from types import SimpleNamespace
+import logging
+from datetime import datetime
+
+today = datetime.now().date()
+logging.basicConfig(filename=f'./{today}.log')
+
 
 app = Flask(__name__)
-keycloak_client = Client()
 
 load_dotenv()
+
 keycloak_server = os.environ.get('KEYCLOAK_SERVER')
 realm = os.environ.get('REALM')
 client_id = os.environ.get('CLIENT_ID')
 client_secret = os.environ.get('CLENT_SECRET')
 secret_key = os.environ.get('SECRET_KEY')
-keyclock_endpoint = f'http://{keycloak_server}/auth/realms/{realm}'
-keyclock_token_endpoint = keyclock_endpoint + \
-    f'/protocol/openid-connect/userinfo'
-keyclock_login_endpoint = keyclock_endpoint + \
-    f'/protocol/openid-connect/token'
-keyclock_logout_endpoint = keyclock_endpoint + \
-    f'/protocol/openid-connect/logout'
+keyclock_endpoint = f'http://{keycloak_server}/auth/realms/{realm}/protocol/openid-connect'
+keyclock_userinfo_endpoint = keyclock_endpoint + '/userinfo'
+keyclock_login_endpoint = keyclock_endpoint + '/token'
+keyclock_logout_endpoint = keyclock_endpoint + '/logout'
 
 with open("./price/resources/config.yaml", "r") as config:
     aws_config = yaml.load(config, Loader=yaml.FullLoader)
+
+
+def check_auth(request):
+    token = request.headers.get('Authorization')
+    response = requests.post(keyclock_userinfo_endpoint,
+                             headers={
+                                 'Authorization': f'Bearer {token}',
+                                 'Content-Type': 'application/x-www-form-urlencoded'}
+                             )
+    return response
 
 
 def insert_data_to_db():
@@ -61,44 +72,52 @@ def insert_data_to_db():
 
 @app.route('/login', methods=['POST'])
 def login():
-    params = json.loads(request.get_data(),
-                        object_hook=lambda d: SimpleNamespace(**d))
-    if len(str(params)) == 0:
-        return 'Bad Request', 400
-    response = requests.post(keyclock_login_endpoint,
-                             headers={
-                                 'Content-Type': 'application/x-www-form-urlencoded'},
-                             data={
-                                 'username': params.username,
-                                 'password': params.password,
-                                 'client_id': client_id,
-                                 'client_secret': client_secret,
-                                 'grant_type': 'password'
-                             }
-                             )
-    if not response.ok:
-        return "Unauthorized", 401
+    try:
+        data = request.get_data()
+        params = json.loads(data, object_hook=lambda d: SimpleNamespace(**d))
+        response = requests.post(keyclock_login_endpoint,
+                                 headers={
+                                     'Content-Type': 'application/x-www-form-urlencoded'},
+                                 data={
+                                     'username': params.username,
+                                     'password': params.password,
+                                     'client_id': client_id,
+                                     'client_secret': client_secret,
+                                     'grant_type': 'password'
+                                 }
+                                 )
+        print(response.status_code)
+    except (AttributeError, TypeError, json.decoder.JSONDecodeError):
+        return Response('{"code": 400,"message": "Bad Request"}', status=400)
+    if response.status_code == 400:
+        return Response('{"code": 400,"message": "Bad Request"}', status=400)
+    elif response.status_code == 401:
+        return Response('{"code": 401,"message": "Unauthorized"}', status=401)
     return str(response), 200
 
 
 @ app.route('/logout', methods=['POST'])
 def logout():
-    token = request.headers.get('Authorization')
-    params = json.loads(request.get_data(),
-                        object_hook=lambda d: SimpleNamespace(**d))
-    response = requests.post(keyclock_logout_endpoint,
-                             headers={
-                                 'Authorization': f'Bearer {token}',
-                                 'Content-Type': 'application/x-www-form-urlencoded'},
-                             data={
-                                 'client_id': client_id,
-                                 'refresh_token': params.refresh_token,
-                             }
-                             )
-    if not response.ok:
-        return "Unauthorized", 401
-
-    return "Hello, World!", 200
+    try:
+        token = request.headers.get('Authorization')
+        params = json.loads(request.get_data(),
+                            object_hook=lambda d: SimpleNamespace(**d))
+        response = requests.post(keyclock_logout_endpoint,
+                                 headers={
+                                     'Authorization': f'Bearer {token}',
+                                     'Content-Type': 'application/x-www-form-urlencoded'},
+                                 data={
+                                     'client_id': client_id,
+                                     'refresh_token': params.refresh_token,
+                                 }
+                                 )
+    except (AttributeError, TypeError, json.decoder.JSONDecodeError):
+        return Response('{"code": 400,"message": "Bad Request"}', status=400)
+    if response.status_code == 400:
+        return Response('{"code": 400,"message": "Bad Request"}', status=400)
+    elif response.status_code == 401:
+        return Response('{"code": 401,"message": "Unauthorized"}', status=401)
+    return str(response), 200
 
 
 if __name__ == '__main__':
