@@ -1,10 +1,9 @@
 from flask import request,jsonify,Blueprint,Flask,Response
-from promql import get_usage,mapping_metrics
+from promql import get_usage,mapping_metrics,Usage,Capacity
 import json
 
 
 
-url = "https://pm-server.devxmonitor.click/api/v1/query"
 range = {"min":"5m","time":"1h","day":"1d","week":"1w","year":"1y"}
 
 
@@ -16,7 +15,7 @@ def resource_usage():
         period = request.args.get('period')
         type = request.args.get('type')
 
-        raw = get_usage(url,period,{type:Usage[type]})
+        raw = get_usage({type:Usage[type]},period=range[period])
         result = mapping_metrics(*raw.keys(),*raw.values())
         result.pop('metric_id',None)
         result = jsonify(result)
@@ -32,7 +31,8 @@ def capacity():
     try:
         period = request.args.get('period')
         type = request.args.get('type',default='cap')
-        raw = get_usage(url,period,{type,query[type])
+        print(type)
+        raw = get_usage({type:Capacity[type]},period=range[period])
         result = mapping_metrics(*raw.keys(),*raw.values())
         result.pop('metric_id',None)
         result.pop('type',None)

@@ -63,13 +63,13 @@ def insert_metrics(Usage,url=url,period='1h'):
     return
 
 
-def insert_capacity(url,query):
-    capacity = get_usage(url,query)
-    print(capacity)
+def insert_capacity(query,url=url,period='1h'):
+    capacity = get_usage(query,url,period)
     res = mapping_metrics(*capacity.keys(),*capacity.values())
-    database.insert_metric('capacity',res['data'],res['created_at'])
+    res.pop('type',None);res.pop('unit',None);res.pop('metric_id')
+    database.insert_metric('capacity',list(res.values()))
     return
-# insert_capacity(url,Capacity)
+insert_capacity(Capacity)
 
 
 def insert_days():
@@ -80,4 +80,3 @@ def insert_months():
     database.insert_months()
     return
 
-insert_metrics(Usage)
