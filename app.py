@@ -1,3 +1,4 @@
+import calendar
 import json
 import os
 import requests
@@ -161,9 +162,12 @@ def exp_cost():
             return unauthorized_error
         database = Database()
         result = database.select_expcost()
-        print(result)
+        today = datetime.today()
+        number_of_days = calendar.monthrange(today.year, today.month)[1]
+        sum_cost = result[0][0]
+        exp_cost = sum_cost + (sum_cost / today.day * number_of_days)
         response = {
-            "data": result[0][0],
+            "data": exp_cost,
             "unit": result[0][1],
             "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
