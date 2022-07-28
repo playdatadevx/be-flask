@@ -15,12 +15,12 @@ class Database:
     units = {1: "%", 2: "%", 3: "%", 4: "mb", 5: "Kbps", 6: "개수"}
     period_conditions = {"time": "DAY", "day": "WEEK", "month": "YEAR"}
     columns = {"cost": ["cost", "unit", "created_at"],
-               "days_of_cost ": ["cost", "unit", "created_at"],
-               "months_cost ": ["cost", "unit", "created_at"],
-               "capacity ": ["capacity", "created_at"],
-               "days_of_capacity ": ["capacity", "created_at"],
-               "months_capacity ": ["capacity", "created_at"],
-               "resource_usage ": ["resource_usage", "unit", "created_at"],
+               "days_of_cost": ["cost", "unit", "created_at"],
+               "months_cost": ["cost", "unit", "created_at"],
+               "capacity": ["capacity", "created_at"],
+               "days_of_capacity": ["capacity", "created_at"],
+               "months_capacity": ["capacity", "created_at"],
+               "resource_usage": ["resource_usage", "unit", "created_at"],
                "days_of_usage": ["resource_usage", "unit", "created_at"],
                "months_usage": ["resource_usage", "unit", "created_at"]
                }
@@ -108,7 +108,20 @@ class Database:
         else:
             self.avg_usage('month', table, now)
 
-    def select_all(self, table):
-        sql = f'SELECT * FROM {table}'
+    def select_cost(self, period):
+        tables = {"time": "cost", "day": "days_of_cost",
+                  "month": "months_cost"}
+        table = tables.get(period)
+        column = Database.columns.get(table)
+        sql = f'SELECT {",".join(column)} FROM {table} WHERE created_at BETWEEN NOW()- INTERVAL 1 {Database.period_conditions.get(period)} AND NOW() ORDER BY created_at ASC;'
         self.curs.execute(sql)
+        result = list(self.curs.fetchall())
         self.conn.commit()
+        return result
+
+    def select_expcost(self):
+        sql = 'SELECT SUM(cost), unit FROM days_of_cost WHERE created_at BETWEEN LAST_DAY(NOW() - interval 1 month) + interval 1 DAY AND NOW();'
+        self.curs.execute(sql)
+        result = self.curs.fetchall()
+        self.conn.commit()
+        return result

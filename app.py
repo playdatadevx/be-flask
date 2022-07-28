@@ -41,15 +41,12 @@ unexpected_error = Response(
 
 def check_auth(request):
     token = request.headers.get('Authorization')
-    params = json.loads(request.get_data(),
-                        object_hook=lambda d: SimpleNamespace(**d))
     keycloak_response = requests.post(keyclock_userinfo_endpoint,
                                       headers={
                                           'Authorization': f'Bearer {token}',
                                           'Content-Type': 'application/x-www-form-urlencoded'},
                                       data={
                                           'client_id': client_id,
-                                          'refresh_token': params.refresh_token,
                                       })
     return keycloak_response
 
@@ -89,11 +86,13 @@ def login():
             return bad_request_error
         elif keycloak_response.status_code == 401:
             return unauthorized_error
-    except (AttributeError, TypeError, json.decoder.JSONDecodeError):
+    except (AttributeError, TypeError, json.decoder.JSONDecodeError) as e:
+        logging.exception(e)
         return bad_request_error
-    except:
+    except Exception as e:
+        logging.exception(e)
         return unexpected_error
-    return str(keycloak_response), 200
+    return keycloak_response.text
 
 
 @ app.route('/logout', methods=['POST'])
@@ -114,11 +113,13 @@ def logout():
             return bad_request_error
         elif keycloak_response.status_code == 401:
             return unauthorized_error
-    except (AttributeError, TypeError, json.decoder.JSONDecodeError):
+    except (AttributeError, TypeError, json.decoder.JSONDecodeError) as e:
+        logging.exception(e)
         return bad_request_error
-    except:
+    except Exception as e:
+        logging.exception(e)
         return unexpected_error
-    return str(keycloak_response), 200
+    return str(keycloak_response)
 
 
 @ app.route('/cost', methods=['GET'])
@@ -130,17 +131,24 @@ def cost():
         elif keycloak_response.status_code == 401:
             return unauthorized_error
         database = Database()
-        # Period 가져오기
         period = request.args.get('period')
-        # DB에서 가져오기
-        costs = database.select('cost', period)
-        print(costs)
-        # 가져온거 보내기
-    except (AttributeError, TypeError, json.decoder.JSONDecodeError):
+        result = database.select_cost(period)
+        costs = []
+        for data in result:
+            costs.append(data[0])
+        last_data = result.pop()
+        response = {
+            "data": costs,
+            "unit": last_data[1],
+            "created_at": last_data[2].strftime("%Y-%m-%d %H:%M:%S")
+        }
+    except (AttributeError, TypeError, json.decoder.JSONDecodeError) as e:
+        logging.exception(e)
         return bad_request_error
-    except:
+    except Exception as e:
+        logging.exception(e)
         return unexpected_error
-    return str(costs), 200
+    return str(response)
 
 
 @ app.route('/exp-cost', methods=['GET'])
@@ -152,13 +160,20 @@ def exp_cost():
         elif keycloak_response.status_code == 401:
             return unauthorized_error
         database = Database()
-        cost_sum = database.select_expcost()
-        # 가져온거 보내기
-    except (AttributeError, TypeError, json.decoder.JSONDecodeError):
+        result = database.select_expcost()
+        print(result)
+        response = {
+            "data": result[0][0],
+            "unit": result[0][1],
+            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+    except (AttributeError, TypeError, json.decoder.JSONDecodeError) as e:
+        logging.exception(e)
         return bad_request_error
-    except:
+    except Exception as e:
+        logging.exception(e)
         return unexpected_error
-    return str(cost_sum), 200
+    return str(response)
 
 
 @app.route('/usage',methods=['GET'])
@@ -196,7 +211,6 @@ def capacity():
 
 if __name__ == '__main__':
     scheduler = BackgroundScheduler(timezone='Asia/Seoul')
-    scheduler.add_job(insert_price_to_db, 'interval',
-                      weeks=2, id='insert_price_to_db', args=['Excute insert_price_to_db'])
+    scheduler.add_job(insert_price_to_db, 'interval', weeks=2)
     scheduler.start()
     app.run(port=5000)
