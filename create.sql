@@ -9,6 +9,24 @@ CREATE TABLE cost (
     PRIMARY KEY(id)
 ) CHARSET=utf8;
 
+CREATE TABLE days_of_cost (
+    id INT NOT NULL AUTO_INCREMENT,
+    cost DOUBLE NOT NULL,
+    created_at DATETIME NOT NULL,
+    unit VARCHAR(10) NOT NULL,
+    app VARCHAR(50),
+    PRIMARY KEY(id)
+) CHARSET=utf8;
+
+CREATE TABLE months_of_cost (
+    id INT NOT NULL AUTO_INCREMENT,
+    cost DOUBLE NOT NULL,
+    created_at DATETIME NOT NULL,
+    unit VARCHAR(10) NOT NULL,
+    app VARCHAR(50),
+    PRIMARY KEY(id)
+) CHARSET=utf8;
+
 CREATE TABLE price (
     id INT NOT NULL AUTO_INCREMENT,
     price DOUBLE NOT NULL,
@@ -26,31 +44,19 @@ CREATE TABLE capacity (
     PRIMARY KEY(id) 
 ) CHARSET=utf8;
 
-CREATE TABLE resource_usage (
+CREATE TABLE days_of_capacity (
     id INT NOT NULL AUTO_INCREMENT,
-    resource_usage INT NOT NULL,
-    metric_id INT NOT NULL REFERENCES metric(id),
+    capacity INT NOT NULL,
     created_at DATETIME NOT NULL,
-    unit VARCHAR(10) NOT NULL,
     app VARCHAR(50),
     PRIMARY KEY(id)
 ) CHARSET=utf8;
 
-CREATE TABLE days_of_usage (
+CREATE TABLE months_of_capacity (
     id INT NOT NULL AUTO_INCREMENT,
-    metric_id INT NOT NULL REFERENCES metric(id),
-    days_usage INT NOT NULL,
-    day DATETIME NOT NULL,
-    unit VARCHAR(10) NOT NULL,
-    PRIMARY KEY(id)
-) CHARSET=utf8;
-
-CREATE TABLE months_of_usage (
-    id INT NOT NULL AUTO_INCREMENT,
-    metric_id INT NOT NULL REFERENCES metric(id),
-    months_usage INT NOT NULL,
-    month DATETIME NOT NULL,
-    unit VARCHAR(10) NOT NULL,
+    capacity INT NOT NULL,
+    created_at DATETIME NOT NULL,
+    app VARCHAR(50),
     PRIMARY KEY(id)
 ) CHARSET=utf8;
 
@@ -59,3 +65,34 @@ CREATE TABLE metric (
     metric VARCHAR(50) NOT NULL,
     PRIMARY KEY(id)
 ) CHARSET=utf8;
+
+CREATE TABLE usages (
+    id INT NOT NULL AUTO_INCREMENT,
+    usages INT NOT NULL,
+    metric_id INT NOT NULL REFERENCES metric(id),
+    created_at DATETIME NOT NULL,
+    unit VARCHAR(10) NOT NULL,
+    app VARCHAR(50),
+    PRIMARY KEY(id)
+) CHARSET=utf8;
+
+CREATE TABLE days_of_usages (
+    id INT NOT NULL AUTO_INCREMENT,
+    metric_id INT NOT NULL REFERENCES metric(id),
+    usages INT NOT NULL,
+    created_at DATETIME NOT NULL,
+    unit VARCHAR(10) NOT NULL,
+    app VARCHAR(50),
+    PRIMARY KEY(id)
+) CHARSET=utf8;
+
+CREATE TABLE months_of_usages (
+    id INT NOT NULL AUTO_INCREMENT,
+    metric_id INT NOT NULL REFERENCES metric(id),
+    usages INT NOT NULL,
+    created_at DATETIME NOT NULL,
+    unit VARCHAR(10) NOT NULL,
+    app VARCHAR(50),
+    PRIMARY KEY(id)
+) CHARSET=utf8;
+

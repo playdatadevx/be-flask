@@ -41,8 +41,8 @@ def mapping_metrics(key,metric):
     created_at = now.strftime("%Y-%m-%d %H:%M:%S")
     
     result = {
-            'data': metric,
             'metric_id': metric_ids[key],
+            'data': metric,
             'created_at': created_at,
             'unit': units[key],
             'type': key
@@ -59,7 +59,7 @@ def insert_metrics(Usage,url=url,period='1h'):
     for key,metric in metrics.items():
         res = mapping_metrics(key,metric)
         res.pop('type',None)
-        database.insert_metric('resource_usage',list(res.values()))
+        database.insert_metric('usages',list(res.values()))
     return
 
 
@@ -69,16 +69,19 @@ def insert_capacity(query,url=url,period='1h'):
     res.pop('type',None);res.pop('unit',None);res.pop('metric_id')
     database.insert_metric('capacity',list(res.values()))
     return
-insert_capacity(Capacity)
 
 
-def insert_days():
-    database.insert_days()
+def insert_days(metric):
+    database.insert_days(metric)
     return
 
-def insert_months():
-    database.insert_months()
+def insert_months(metric):
+    database.insert_months(metric)
     return
 
-insert_days()
-insert_months()
+# metrics  ex ) 'price', 'cost', 'capacity', 'usages'
+
+#insert_metrics(Capacity)
+#insert_capacity(Capacity)
+insert_days('capacity')
+insert_months('capacity')

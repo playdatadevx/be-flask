@@ -8,7 +8,7 @@ from datetime import datetime
 class Database:
 
     resources = {1:"cpu",2:"memory",3:"disk",4:"storage",5:"traffic",6:"node"}
-    units = {1:"%",2:"%",3:"%",4:"mb",5:"Kbps",6:"개수"}
+    units = {1:"%",2:"%",3:"%",4:"mb",5:"Kbps",6:"개수",None:""}
 
     def __init__(self):
         host = '127.0.0.1' #os.environ.get('HOST')
@@ -28,7 +28,7 @@ class Database:
         prop = {
                 'price':'price,created_at,unit,aws_service',
                 'cost':'cost,created_at,unit,app',
-                'resource_usage':'resource_usage,metric_id,created_at,unit',
+                'usages':'metric_id,usages,created_at,unit',
                 'capacity':'capacity,created_at',
                 'metric':'metric'
                 }
@@ -39,34 +39,44 @@ class Database:
         self.curs.execute(sql)
         self.conn.commit()
 
-    def avg_usage(self,cycle,now,metric_id):
-        if cycle=='day': target_usage='resource_usage'; target_table='resource_usage'; now_formatter=now; target_date='created_at,"%Y-%m-%d"';dest_table="days_of_usage"
-        elif cycle=='month': target_usage='days_usage'; target_table='days_of_usage'; now_formatter=datetime.strptime(now,"%Y-%m-%d").strftime("%Y-%m"); target_date='day,"%Y-%m"';dest_table="months_of_usage"
+    def avg_usage(self,cycle,metric,now,m_id=None):
+        def ex(metric_id,string): 
+            if metric_id==None: return ''
+            else: return string
+            
 
-        select_sql = f'select floor(avg({target_usage})) from {target_table} where("{now_formatter}" = DATE_FORMAT({target_date})) and metric_id={metric_id};' 
+        if cycle=='day': target_table=metric; time_formatter="%Y-%m-%d";
+        elif cycle=='month': target_table=f'days_of_{metric}'; time_formatter="%Y-%m";
+
+        select_sql = f'select floor(avg({metric})) from {target_table} where(DATE_FORMAT("{now}","{time_formatter}") = DATE_FORMAT(created_at,"{time_formatter}"))'+ ex(m_id,f' and metric_id={m_id}')+';'
         
         self.curs.execute(select_sql)
         result = int(self.curs.fetchall()[0][0])
         
-        insert_sql = f'insert into {dest_table} (metric_id,{cycle}s_usage,{cycle},unit) VALUES ({metric_id},{result},"{now}","{Database.units[metric_id]}");' 
-
+        insert_sql = f'insert into {cycle}s_of_{metric} ('+ ex(m_id,'metric_id,') + f'{metric},created_at'+ ex(m_id,',unit') + ') VALUES ('+ ex(m_id,f'{m_id},') + f'{result},"{now}"' + ex(m_id,f',"{Database.units[m_id]}"') +');' 
         self.curs.execute(insert_sql)
         self.conn.commit()
         return
 
-    def insert_days(self):                          # 일별 평균 사용량 Table 명(days_of_usage)
+    def insert_days(self,metric):                          # 일별 평균 사용량 Table 명(days_of_usage)
         now = datetime.now().strftime("%Y-%m-%d")
         metric_ids = len(Database.resources.keys())
-        for metric_id in range(1,metric_ids+1):
-            if metric_id==4: continue   # Storage 부분은 아직 데이터가 없어 생략
-            self.avg_usage('day',now,metric_id)
+        if metric=='usages':
+            for metric_id in range(1,metric_ids+1):
+                if metric_id==4: continue   # Storage 부분은 아직 데이터가 없어 생략
+                self.avg_usage('day',metric,now,m_id=metric_id)
+        else:
+            self.avg_usage('day',metric,now)
             
-    def insert_months(self):                        # 월별 평균 사용량 Table 명 (months_of_usage)
+    def insert_months(self,metric):                        # 월별 평균 사용량 Table 명 (months_of_usage)
         now = datetime.now().strftime("%Y-%m-%d")
         metric_ids = len(Database.resources.keys())
-        for metric_id in range(1,metric_ids+1):
-            if metric_id==4: continue   # Storage 부분은 아직 데이터가 없어 생략
-            self.avg_usage('month',now,metric_id)
+        if metric=='usages':
+            for metric_id in range(1,metric_ids+1):
+                if metric_id==4: continue   # Storage 부분은 아직 데이터가 없어 생략
+                self.avg_usage('month',metric,now,m_id=metric_id)
+        else:
+            self.avg_usage('month',metric,now)
 
     def select_all(self,table):
         sql = f'SELECT * FROM {table}'
