@@ -1,7 +1,6 @@
 import json
 import os
 import requests
-import yaml
 from apscheduler.schedulers.background import BackgroundScheduler
 from database import Database
 from dotenv import load_dotenv
@@ -32,8 +31,12 @@ keyclock_userinfo_endpoint = keyclock_endpoint + '/userinfo'
 keyclock_login_endpoint = keyclock_endpoint + '/token'
 keyclock_logout_endpoint = keyclock_endpoint + '/logout'
 
-with open("./price/resources/config.yaml", "r") as config:
-    aws_config = yaml.load(config, Loader=yaml.FullLoader)
+bad_request_error = Response(
+    '{"code": 400,"message": "Bad Request"}', status=400)
+unauthorized_error = Response(
+    '{"code": 401,"message": "Unauthorized"}', status=401)
+unexpected_error = Response(
+    '{"code": 500,"message": "Unexpected Error"}', status=500)
 
 
 def check_auth(request):
@@ -47,36 +50,24 @@ def check_auth(request):
                                       data={
                                           'client_id': client_id,
                                           'refresh_token': params.refresh_token,
-                                      }
-                                      )
+                                      })
     return keycloak_response
 
 
-def insert_data_to_db():
-    service_code_ec2 = aws_config.get('service_code_ec2')
-    service_code_eks = aws_config.get('service_code_eks')
-    ec2_filter_path = aws_config.get('ec2_filter_path')
-    ebs_filter_path = aws_config.get('ebs_filter_path')
-    eks_filter_path = aws_config.get('eks_filter_path')
-    ec2_sku = aws_config.get('ec2_sku')
-    ebs_sku = aws_config.get('ebs_sku')
-    eks_sku = aws_config.get('eks_sku')
-
-    ec2_price = Price()
-    ebs_price = Price()
-    eks_price = Price()
-
-    ec2_price.get_products(service_code_ec2, ec2_filter_path, ec2_sku)
-    ebs_price.get_products(service_code_ec2, ebs_filter_path, ebs_sku)
-    eks_price.get_products(service_code_eks, eks_filter_path, eks_sku)
+def insert_price_to_db():
+    ec2_price = Price().get_products('ec2')
+    ebs_price = Price().get_products('ebs')
+    eks_price = Price().get_products('eks')
 
     database = Database()
-    database.insert_price(ec2_price.price, ec2_price.unit,
-                          ec2_price.description)
-    database.insert_price(ebs_price.price, ebs_price.unit,
-                          ebs_price.description)
-    database.insert_price(eks_price.price, eks_price.unit,
-                          eks_price.description)
+    now = datetime.now()
+    created_at = now.strftime("%Y-%m-%d %H:%M:%S")
+    database.insert_metric('price', ec2_price.price,
+                           created_at, ec2_price.unit, ec2_price.description)
+    database.insert_price('price', ebs_price.price,
+                          created_at, ebs_price.unit, ebs_price.description)
+    database.insert_price('price', eks_price.price,
+                          created_at, eks_price.unit, eks_price.description)
 
 
 @app.route('/login', methods=['POST'])
@@ -93,16 +84,15 @@ def login():
                                               'client_id': client_id,
                                               'client_secret': client_secret,
                                               'grant_type': 'password'
-                                          }
-                                          )
+                                          })
         if keycloak_response.status_code == 400:
-            return Response('{"code": 400,"message": "Bad Request"}', status=400)
+            return bad_request_error
         elif keycloak_response.status_code == 401:
-            return Response('{"code": 401,"message": "Unauthorized"}', status=401)
+            return unauthorized_error
     except (AttributeError, TypeError, json.decoder.JSONDecodeError):
-        return Response('{"code": 400,"message": "Bad Request"}', status=400)
+        return bad_request_error
     except:
-        return Response('{"code": 500,"message": "Unexpected Error"}', status=500)
+        return unexpected_error
     return str(keycloak_response), 200
 
 
@@ -119,16 +109,15 @@ def logout():
                                           data={
                                               'client_id': client_id,
                                               'refresh_token': params.refresh_token,
-                                          }
-                                          )
+                                          })
         if keycloak_response.status_code == 400:
-            return Response('{"code": 400,"message": "Bad Request"}', status=400)
+            return bad_request_error
         elif keycloak_response.status_code == 401:
-            return Response('{"code": 401,"message": "Unauthorized"}', status=401)
+            return unauthorized_error
     except (AttributeError, TypeError, json.decoder.JSONDecodeError):
-        return Response('{"code": 400,"message": "Bad Request"}', status=400)
+        return bad_request_error
     except:
-        return Response('{"code": 500,"message": "Unexpected Error"}', status=500)
+        return unexpected_error
     return str(keycloak_response), 200
 
 
@@ -137,15 +126,21 @@ def cost():
     try:
         keycloak_response = check_auth(request)
         if keycloak_response.status_code == 400:
-            return Response('{"code": 400,"message": "Bad Request"}', status=400)
+            return bad_request_error
         elif keycloak_response.status_code == 401:
-            return Response('{"code": 401,"message": "Unauthorized"}', status=401)
-        # 여기부터 시작
+            return unauthorized_error
+        database = Database()
+        # Period 가져오기
+        period = request.args.get('period')
+        # DB에서 가져오기
+        costs = database.select('cost', period)
+        print(costs)
+        # 가져온거 보내기
     except (AttributeError, TypeError, json.decoder.JSONDecodeError):
-        return Response('{"code": 400,"message": "Bad Request"}', status=400)
+        return bad_request_error
     except:
-        return Response('{"code": 500,"message": "Unexpected Error"}', status=500)
-    return str(keycloak_response), 200
+        return unexpected_error
+    return str(costs), 200
 
 
 @ app.route('/exp-cost', methods=['GET'])
@@ -153,15 +148,17 @@ def exp_cost():
     try:
         keycloak_response = check_auth(request)
         if keycloak_response.status_code == 400:
-            return Response('{"code": 400,"message": "Bad Request"}', status=400)
+            return bad_request_error
         elif keycloak_response.status_code == 401:
-            return Response('{"code": 401,"message": "Unauthorized"}', status=401)
-    # 여기부터 시작
+            return unauthorized_error
+        database = Database()
+        cost_sum = database.select_expcost()
+        # 가져온거 보내기
     except (AttributeError, TypeError, json.decoder.JSONDecodeError):
-        return Response('{"code": 400,"message": "Bad Request"}', status=400)
+        return bad_request_error
     except:
-        return Response('{"code": 500,"message": "Unexpected Error"}', status=500)
-    return str(keycloak_response), 200
+        return unexpected_error
+    return str(cost_sum), 200
 
 
 @app.route('/usage',methods=['GET'])
@@ -198,9 +195,8 @@ def capacity():
     return result
 
 if __name__ == '__main__':
-    os.environ['AWS_DEFAULT_REGION'] = aws_config.get('region')
-    os.environ['AWS_PROFILE'] = aws_config.get('profile')
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(insert_data_to_db, 'interval', weeks=2)
+    scheduler = BackgroundScheduler(timezone='Asia/Seoul')
+    scheduler.add_job(insert_price_to_db, 'interval',
+                      weeks=2, id='insert_price_to_db', args=['Excute insert_price_to_db'])
     scheduler.start()
     app.run(port=5000)
