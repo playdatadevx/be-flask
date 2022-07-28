@@ -9,9 +9,9 @@ from price import Price
 from types import SimpleNamespace
 import logging
 from datetime import datetime
-from promql import get_usage,mapping_metrics,Usage,Capacity
+from promql import get_usage, mapping_metrics, Usage, Capacity
 
-range_ = {"min":"5m","time":"1h","day":"1d","week":"1w","year":"1y"}
+range_ = {"min": "5m", "time": "1h", "day": "1d", "week": "1w", "year": "1y"}
 
 today = datetime.now().date()
 logging.basicConfig(filename=f'./logs/{today}.log')
@@ -176,38 +176,53 @@ def exp_cost():
     return str(response)
 
 
-@app.route('/usage',methods=['GET'])
+@app.route('/usage', methods=['GET'])
 def resource_usage():
     try:
+        keycloak_response = check_auth(request)
+        if keycloak_response.status_code == 400:
+            return bad_request_error
+        elif keycloak_response.status_code == 401:
+            return unauthorized_error
         period = request.args.get('period')
         type_ = request.args.get('type')
 
-        raw = get_usage({type_:Usage[type_]},period=range_[period])
-        result = mapping_metrics(*raw.keys(),*raw.values())
-        result.pop('metric_id',None)
+        raw = get_usage({type_: Usage[type_]}, period=range_[period])
+        result = mapping_metrics(*raw.keys(), *raw.values())
+        result.pop('metric_id', None)
         result = jsonify(result)
-    except (AttributeError, KeyError, TypeError, json.decoder.JSONDecodeError):
-        return Response('{"code": 400,"message": "Bad Request" }', status=400)
-    except:
-        return Response('{"code": 401,"message": "Unauthorized"}', status=401)
+    except (AttributeError, TypeError, json.decoder.JSONDecodeError) as e:
+        logging.exception(e)
+        return bad_request_error
+    except Exception as e:
+        logging.exception(e)
+        return unexpected_error
     return result
 
 
-@app.route('/capacity',methods=['GET'])
+@app.route('/capacity', methods=['GET'])
 def capacity():
     try:
+        keycloak_response = check_auth(request)
+        if keycloak_response.status_code == 400:
+            return bad_request_error
+        elif keycloak_response.status_code == 401:
+            return unauthorized_error
         period = request.args.get('period')
-        type_ = request.args.get('type',default='cap')
-        raw = get_usage({type_:Capacity[type_]},period=range_[period])
-        result = mapping_metrics(*raw.keys(),*raw.values())
-        result.pop('metric_id',None)
-        result.pop('type',None)
+        type_ = request.args.get('type', default='cap')
+        raw = get_usage({type_: Capacity[type_]}, period=range_[period])
+        result = mapping_metrics(*raw.keys(), *raw.values())
+        result.pop('metric_id', None)
+        result.pop('type', None)
         result = jsonify(result)
-    except (AttributeError, KeyError, TypeError, json.decoder.JSONDecodeError):
-        return Response('{"code": 400,"message": "Bad Request" }', status=400)
-    except:
-        return Response('{"code": 401,"message": "Unauthorized"}', status=401)
+    except (AttributeError, TypeError, json.decoder.JSONDecodeError) as e:
+        logging.exception(e)
+        return bad_request_error
+    except Exception as e:
+        logging.exception(e)
+        return unexpected_error
     return result
+
 
 if __name__ == '__main__':
     scheduler = BackgroundScheduler(timezone='Asia/Seoul')
