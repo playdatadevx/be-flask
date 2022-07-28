@@ -5,11 +5,14 @@ import yaml
 from apscheduler.schedulers.background import BackgroundScheduler
 from database import Database
 from dotenv import load_dotenv
-from flask import Flask, Response, request
+from flask import Flask, Response, request, jsonify
 from price import Price
 from types import SimpleNamespace
 import logging
 from datetime import datetime
+from promql import get_usage,mapping_metrics,Usage,Capacity
+
+range_ = {"min":"5m","time":"1h","day":"1d","week":"1w","year":"1y"}
 
 today = datetime.now().date()
 logging.basicConfig(filename=f'./logs/{today}.log')
@@ -160,6 +163,39 @@ def exp_cost():
         return Response('{"code": 500,"message": "Unexpected Error"}', status=500)
     return str(keycloak_response), 200
 
+
+@app.route('/usage',methods=['GET'])
+def resource_usage():
+    try:
+        period = request.args.get('period')
+        type_ = request.args.get('type')
+
+        raw = get_usage({type_:Usage[type_]},period=range_[period])
+        result = mapping_metrics(*raw.keys(),*raw.values())
+        result.pop('metric_id',None)
+        result = jsonify(result)
+    except (AttributeError, KeyError, TypeError, json.decoder.JSONDecodeError):
+        return Response('{"code": 400,"message": "Bad Request" }', status=400)
+    except:
+        return Response('{"code": 401,"message": "Unauthorized"}', status=401)
+    return result
+
+
+@app.route('/capacity',methods=['GET'])
+def capacity():
+    try:
+        period = request.args.get('period')
+        type_ = request.args.get('type',default='cap')
+        raw = get_usage({type_:Capacity[type_]},period=range_[period])
+        result = mapping_metrics(*raw.keys(),*raw.values())
+        result.pop('metric_id',None)
+        result.pop('type',None)
+        result = jsonify(result)
+    except (AttributeError, KeyError, TypeError, json.decoder.JSONDecodeError):
+        return Response('{"code": 400,"message": "Bad Request" }', status=400)
+    except:
+        return Response('{"code": 401,"message": "Unauthorized"}', status=401)
+    return result
 
 if __name__ == '__main__':
     os.environ['AWS_DEFAULT_REGION'] = aws_config.get('region')
