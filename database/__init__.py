@@ -26,6 +26,7 @@ class Database:
         if type(x)==str: return "{}".format(x)
         else: return x
 
+
     def insert_metric(self, table,items):
         prop = {
                 'price':'price,created_at,unit,aws_service',
@@ -35,6 +36,7 @@ class Database:
                 'capacity':'capacity,created_at',
                 'metric':'metric'
                 }
+
 
         sql_row = str([*map(Database.quotation,items)]).replace('[','(').replace(']',')')
 
