@@ -40,7 +40,7 @@ CREATE TABLE days_of_usage (
     id INT NOT NULL AUTO_INCREMENT,
     metric_id INT NOT NULL REFERENCES metric(id),
     days_usage INT NOT NULL,
-    day DATE NOT NULL,
+    day DATETIME NOT NULL,
     unit VARCHAR(10) NOT NULL,
     PRIMARY KEY(id)
 ) CHARSET=utf8;
@@ -49,7 +49,7 @@ CREATE TABLE months_of_usage (
     id INT NOT NULL AUTO_INCREMENT,
     metric_id INT NOT NULL REFERENCES metric(id),
     months_usage INT NOT NULL,
-    month VARCHAR(10) NOT NULL,
+    month DATETIME NOT NULL,
     unit VARCHAR(10) NOT NULL,
     PRIMARY KEY(id)
 ) CHARSET=utf8;

@@ -40,10 +40,10 @@ class Database:
         self.conn.commit()
 
     def avg_usage(self,cycle,now,metric_id):
-        if cycle=='day': target_usage='resource_usage'; target_table='resource_usage'; target_date='created_at,"%Y-%m-%d"';dest_table="days_of_usage"
-        elif cycle=='month': target_usage='days_usage'; target_table='days_of_usage'; target_date='day,"%Y-%m"';dest_table="months_of_usage"
+        if cycle=='day': target_usage='resource_usage'; target_table='resource_usage'; now_formatter=now; target_date='created_at,"%Y-%m-%d"';dest_table="days_of_usage"
+        elif cycle=='month': target_usage='days_usage'; target_table='days_of_usage'; now_formatter=datetime.strptime(now,"%Y-%m-%d").strftime("%Y-%m"); target_date='day,"%Y-%m"';dest_table="months_of_usage"
 
-        select_sql = f'select floor(avg({target_usage})) from {target_table} where("{now}" = DATE_FORMAT({target_date})) and metric_id={metric_id};' 
+        select_sql = f'select floor(avg({target_usage})) from {target_table} where("{now_formatter}" = DATE_FORMAT({target_date})) and metric_id={metric_id};' 
         
         self.curs.execute(select_sql)
         result = int(self.curs.fetchall()[0][0])
@@ -62,7 +62,7 @@ class Database:
             self.avg_usage('day',now,metric_id)
             
     def insert_months(self):                        # 월별 평균 사용량 Table 명 (months_of_usage)
-        now = datetime.now().strftime("%Y-%m")
+        now = datetime.now().strftime("%Y-%m-%d")
         metric_ids = len(Database.resources.keys())
         for metric_id in range(1,metric_ids+1):
             if metric_id==4: continue   # Storage 부분은 아직 데이터가 없어 생략

@@ -80,3 +80,5 @@ def insert_months():
     database.insert_months()
     return
 
+insert_days()
+insert_months()
