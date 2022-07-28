@@ -5,16 +5,17 @@ import yaml
 from apscheduler.schedulers.background import BackgroundScheduler
 from database import Database
 from dotenv import load_dotenv
-from flask import Flask, Response, request,jsonify
+from flask import Flask, Response, request, jsonify
 from price import Price
 from types import SimpleNamespace
 import logging
 from datetime import datetime
-from promql import get_usage,mapping_metrics
+from promql import get_usage,mapping_metrics,Usage,Capacity
 
+range_ = {"min":"5m","time":"1h","day":"1d","week":"1w","year":"1y"}
 
 today = datetime.now().date()
-logging.basicConfig(filename=f'./{today}.log')
+logging.basicConfig(filename=f'./logs/{today}.log')
 
 
 app = Flask(__name__)
@@ -30,10 +31,6 @@ keyclock_endpoint = f'http://{keycloak_server}/auth/realms/{realm}/protocol/open
 keyclock_userinfo_endpoint = keyclock_endpoint + '/userinfo'
 keyclock_login_endpoint = keyclock_endpoint + '/token'
 keyclock_logout_endpoint = keyclock_endpoint + '/logout'
-
-url = "https://pm-server.devxmonitoring.click/api/v1/query"
-range = {"min":"5m","time":"1h","day":"1d","week":"1w","year":"1y"}
-
 
 with open("./price/resources/config.yaml", "r") as config:
     aws_config = yaml.load(config, Loader=yaml.FullLoader)
@@ -112,7 +109,7 @@ def login():
 @ app.route('/logout', methods=['POST'])
 def logout():
     try:
-        token = request.headers.get('Authorization', keyclock_logout_endpoint)
+        token = request.headers.get('Authorization')
         params = json.loads(request.get_data(),
                             object_hook=lambda d: SimpleNamespace(**d))
         keycloak_response = requests.post(keyclock_logout_endpoint,
@@ -138,48 +135,42 @@ def logout():
 @ app.route('/cost', methods=['GET'])
 def cost():
     try:
-        keycloak_response = check_auth(request, keyclock_userinfo_endpoint)
+        keycloak_response = check_auth(request)
         if keycloak_response.status_code == 400:
             return Response('{"code": 400,"message": "Bad Request"}', status=400)
         elif keycloak_response.status_code == 401:
             return Response('{"code": 401,"message": "Unauthorized"}', status=401)
+        # 여기부터 시작
     except (AttributeError, TypeError, json.decoder.JSONDecodeError):
         return Response('{"code": 400,"message": "Bad Request"}', status=400)
     except:
         return Response('{"code": 500,"message": "Unexpected Error"}', status=500)
-    # 여기부터 시작
     return str(keycloak_response), 200
 
 
 @ app.route('/exp-cost', methods=['GET'])
 def exp_cost():
     try:
-        keycloak_response = check_auth(request, keyclock_userinfo_endpoint)
+        keycloak_response = check_auth(request)
         if keycloak_response.status_code == 400:
             return Response('{"code": 400,"message": "Bad Request"}', status=400)
         elif keycloak_response.status_code == 401:
             return Response('{"code": 401,"message": "Unauthorized"}', status=401)
+    # 여기부터 시작
     except (AttributeError, TypeError, json.decoder.JSONDecodeError):
         return Response('{"code": 400,"message": "Bad Request"}', status=400)
     except:
         return Response('{"code": 500,"message": "Unexpected Error"}', status=500)
-    # 여기부터 시작
     return str(keycloak_response), 200
-
 
 
 @app.route('/usage',methods=['GET'])
 def resource_usage():
     try:
         period = request.args.get('period')
-        type = request.args.get('type')
-        Usage={
-        'disk':'sum(node_filesystem_size_bytes{kubernetes_node=""} - node_filesystem_avail_bytes{kubernetes_node=""}) by (kubernetes_node) / sum(node_filesystem_avail_bytes{kubernetes_node=""}) by (kubrenetes_node)*100',
-        'memory':'avg((node_memory_MemAvailable_bytes + on(instance) group_left(nodename) node_uname_info) / ((node_memory_MemTotal_bytes + on(instance) group_left(nodename) node_uname_info))*100)',
-        'cpu':'((sum by (instance,nodename) (irate(node_cpu_seconds_total{mode!~"guest.*|idle|iowait"}[required])) + on(instance) group_left(nodename) node_uname_info) - 1)*100',
-        'traffic':'sum (rate(node_network_receive_bytes_total[required]))/1000',
-        'node':'count(kube_node_created)'}
-        raw = get_usage(url,{type:Usage[type].replace('required',range[period])})
+        type_ = request.args.get('type')
+
+        raw = get_usage({type_:Usage[type_]},period=range_[period])
         result = mapping_metrics(*raw.keys(),*raw.values())
         result.pop('metric_id',None)
         result = jsonify(result)
@@ -193,10 +184,9 @@ def resource_usage():
 @app.route('/capacity',methods=['GET'])
 def capacity():
     try:
-        token = request.headers.get('Authorization')
         period = request.args.get('period')
-        query = {'cap':'avg(avg_over_time((sum without () (kube_pod_container_status_ready{namespace=~"kube-system", pod=~"aws-node.*"}) / count without ()(kube_pod_container_status_ready{namespace=~"kube-system", pod=~"aws-node.*"}))[required:]))*100'}
-        raw = get_usage(url,{'cap':query['cap'].replace('required',range[period])},headers=token)
+        type_ = request.args.get('type',default='cap')
+        raw = get_usage({type_:Capacity[type_]},period=range_[period])
         result = mapping_metrics(*raw.keys(),*raw.values())
         result.pop('metric_id',None)
         result.pop('type',None)
@@ -207,17 +197,10 @@ def capacity():
         return Response('{"code": 401,"message": "Unauthorized"}', status=401)
     return result
 
-
-
 if __name__ == '__main__':
     os.environ['AWS_DEFAULT_REGION'] = aws_config.get('region')
     os.environ['AWS_PROFILE'] = aws_config.get('profile')
-    app.config['JSON_AS_ASCII'] = False
     scheduler = BackgroundScheduler()
     scheduler.add_job(insert_data_to_db, 'interval', weeks=2)
     scheduler.start()
     app.run(port=5000)
-
-
-
-

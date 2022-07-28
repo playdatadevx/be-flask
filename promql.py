@@ -50,11 +50,7 @@ def mapping_metrics(key,metric):
     return result
 
 def insert_metrics(Usage,url=url,period='1h'):
-
-    now = datetime.now()
-    created_at = now.strftime("%Y-%m-%d %H:%M:%S")
     metrics = get_usage(Usage,url,period)
-    sql_rows = []
 
     for key,metric in metrics.items():
         res = mapping_metrics(key,metric)
@@ -65,9 +61,11 @@ def insert_metrics(Usage,url=url,period='1h'):
 
 def insert_capacity(query,url=url,period='1h'):
     capacity = get_usage(query,url,period)
-    res = mapping_metrics(*capacity.keys(),*capacity.values())
-    res.pop('type',None);res.pop('unit',None);res.pop('metric_id')
-    database.insert_metric('capacity',list(res.values()))
+    
+    for key,metric in metrics.items():
+        res = mapping_metrics(key,metric)
+        res.pop('type',None);res.pop('unit',None);res.pop('metric_id')
+        database.insert_metric('capacity',list(res.values()))
     return
 
 
@@ -83,5 +81,5 @@ def insert_months(metric):
 
 #insert_metrics(Capacity)
 #insert_capacity(Capacity)
-insert_days('capacity')
-insert_months('capacity')
+#insert_days('capacity')
+#insert_months('capacity')
