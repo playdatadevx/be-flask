@@ -1,7 +1,7 @@
+import calendar
 import json
 import os
 import requests
-import yaml
 from apscheduler.schedulers.background import BackgroundScheduler
 from database import Database
 from dotenv import load_dotenv
@@ -10,9 +10,9 @@ from price import Price
 from types import SimpleNamespace
 import logging
 from datetime import datetime
-from promql import get_usage,mapping_metrics,Usage,Capacity
+from promql import get_usage, mapping_metrics, Usage, Capacity
 
-range_ = {"min":"5m","time":"1h","day":"1d","week":"1w","year":"1y"}
+range_ = {"min": "5m", "time": "1h", "day": "1d", "week": "1w", "year": "1y"}
 
 today = datetime.now().date()
 logging.basicConfig(filename=f'./logs/{today}.log')
@@ -32,51 +32,40 @@ keyclock_userinfo_endpoint = keyclock_endpoint + '/userinfo'
 keyclock_login_endpoint = keyclock_endpoint + '/token'
 keyclock_logout_endpoint = keyclock_endpoint + '/logout'
 
-with open("./price/resources/config.yaml", "r") as config:
-    aws_config = yaml.load(config, Loader=yaml.FullLoader)
+bad_request_error = Response(
+    '{"code": 400,"message": "Bad Request"}', status=400)
+unauthorized_error = Response(
+    '{"code": 401,"message": "Unauthorized"}', status=401)
+unexpected_error = Response(
+    '{"code": 500,"message": "Unexpected Error"}', status=500)
 
 
 def check_auth(request):
     token = request.headers.get('Authorization')
-    params = json.loads(request.get_data(),
-                        object_hook=lambda d: SimpleNamespace(**d))
     keycloak_response = requests.post(keyclock_userinfo_endpoint,
                                       headers={
                                           'Authorization': f'Bearer {token}',
                                           'Content-Type': 'application/x-www-form-urlencoded'},
                                       data={
                                           'client_id': client_id,
-                                          'refresh_token': params.refresh_token,
-                                      }
-                                      )
+                                      })
     return keycloak_response
 
 
-def insert_data_to_db():
-    service_code_ec2 = aws_config.get('service_code_ec2')
-    service_code_eks = aws_config.get('service_code_eks')
-    ec2_filter_path = aws_config.get('ec2_filter_path')
-    ebs_filter_path = aws_config.get('ebs_filter_path')
-    eks_filter_path = aws_config.get('eks_filter_path')
-    ec2_sku = aws_config.get('ec2_sku')
-    ebs_sku = aws_config.get('ebs_sku')
-    eks_sku = aws_config.get('eks_sku')
-
-    ec2_price = Price()
-    ebs_price = Price()
-    eks_price = Price()
-
-    ec2_price.get_products(service_code_ec2, ec2_filter_path, ec2_sku)
-    ebs_price.get_products(service_code_ec2, ebs_filter_path, ebs_sku)
-    eks_price.get_products(service_code_eks, eks_filter_path, eks_sku)
+def insert_price_to_db():
+    ec2_price = Price().get_products('ec2')
+    ebs_price = Price().get_products('ebs')
+    eks_price = Price().get_products('eks')
 
     database = Database()
-    database.insert_price(ec2_price.price, ec2_price.unit,
-                          ec2_price.description)
-    database.insert_price(ebs_price.price, ebs_price.unit,
-                          ebs_price.description)
-    database.insert_price(eks_price.price, eks_price.unit,
-                          eks_price.description)
+    now = datetime.now()
+    created_at = now.strftime("%Y-%m-%d %H:%M:%S")
+    database.insert_metric('price', ec2_price.price,
+                           created_at, ec2_price.unit, ec2_price.description)
+    database.insert_price('price', ebs_price.price,
+                          created_at, ebs_price.unit, ebs_price.description)
+    database.insert_price('price', eks_price.price,
+                          created_at, eks_price.unit, eks_price.description)
 
 
 @app.route('/login', methods=['POST'])
@@ -93,17 +82,18 @@ def login():
                                               'client_id': client_id,
                                               'client_secret': client_secret,
                                               'grant_type': 'password'
-                                          }
-                                          )
+                                          })
         if keycloak_response.status_code == 400:
-            return Response('{"code": 400,"message": "Bad Request"}', status=400)
+            return bad_request_error
         elif keycloak_response.status_code == 401:
-            return Response('{"code": 401,"message": "Unauthorized"}', status=401)
-    except (AttributeError, TypeError, json.decoder.JSONDecodeError):
-        return Response('{"code": 400,"message": "Bad Request"}', status=400)
-    except:
-        return Response('{"code": 500,"message": "Unexpected Error"}', status=500)
-    return str(keycloak_response), 200
+            return unauthorized_error
+    except (AttributeError, TypeError, json.decoder.JSONDecodeError) as e:
+        logging.exception(e)
+        return bad_request_error
+    except Exception as e:
+        logging.exception(e)
+        return unexpected_error
+    return keycloak_response.text
 
 
 @ app.route('/logout', methods=['POST'])
@@ -119,17 +109,18 @@ def logout():
                                           data={
                                               'client_id': client_id,
                                               'refresh_token': params.refresh_token,
-                                          }
-                                          )
+                                          })
         if keycloak_response.status_code == 400:
-            return Response('{"code": 400,"message": "Bad Request"}', status=400)
+            return bad_request_error
         elif keycloak_response.status_code == 401:
-            return Response('{"code": 401,"message": "Unauthorized"}', status=401)
-    except (AttributeError, TypeError, json.decoder.JSONDecodeError):
-        return Response('{"code": 400,"message": "Bad Request"}', status=400)
-    except:
-        return Response('{"code": 500,"message": "Unexpected Error"}', status=500)
-    return str(keycloak_response), 200
+            return unauthorized_error
+    except (AttributeError, TypeError, json.decoder.JSONDecodeError) as e:
+        logging.exception(e)
+        return bad_request_error
+    except Exception as e:
+        logging.exception(e)
+        return unexpected_error
+    return str(keycloak_response)
 
 
 @ app.route('/cost', methods=['GET'])
@@ -137,15 +128,28 @@ def cost():
     try:
         keycloak_response = check_auth(request)
         if keycloak_response.status_code == 400:
-            return Response('{"code": 400,"message": "Bad Request"}', status=400)
+            return bad_request_error
         elif keycloak_response.status_code == 401:
-            return Response('{"code": 401,"message": "Unauthorized"}', status=401)
-        # 여기부터 시작
-    except (AttributeError, TypeError, json.decoder.JSONDecodeError):
-        return Response('{"code": 400,"message": "Bad Request"}', status=400)
-    except:
-        return Response('{"code": 500,"message": "Unexpected Error"}', status=500)
-    return str(keycloak_response), 200
+            return unauthorized_error
+        database = Database()
+        period = request.args.get('period')
+        result = database.select_cost(period)
+        costs = []
+        for data in result:
+            costs.append(data[0])
+        last_data = result.pop()
+        response = {
+            "data": costs,
+            "unit": last_data[1],
+            "created_at": last_data[2].strftime("%Y-%m-%d %H:%M:%S")
+        }
+    except (AttributeError, TypeError, json.decoder.JSONDecodeError) as e:
+        logging.exception(e)
+        return bad_request_error
+    except Exception as e:
+        logging.exception(e)
+        return unexpected_error
+    return str(response)
 
 
 @ app.route('/exp-cost', methods=['GET'])
@@ -153,54 +157,79 @@ def exp_cost():
     try:
         keycloak_response = check_auth(request)
         if keycloak_response.status_code == 400:
-            return Response('{"code": 400,"message": "Bad Request"}', status=400)
+            return bad_request_error
         elif keycloak_response.status_code == 401:
-            return Response('{"code": 401,"message": "Unauthorized"}', status=401)
-    # 여기부터 시작
-    except (AttributeError, TypeError, json.decoder.JSONDecodeError):
-        return Response('{"code": 400,"message": "Bad Request"}', status=400)
-    except:
-        return Response('{"code": 500,"message": "Unexpected Error"}', status=500)
-    return str(keycloak_response), 200
+            return unauthorized_error
+        database = Database()
+        result = database.select_expcost()
+        today = datetime.today()
+        number_of_days = calendar.monthrange(today.year, today.month)[1]
+        sum_cost = result[0][0]
+        exp_cost = sum_cost + (sum_cost / today.day * number_of_days)
+        response = {
+            "data": exp_cost,
+            "unit": result[0][1],
+            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+    except (AttributeError, TypeError, json.decoder.JSONDecodeError) as e:
+        logging.exception(e)
+        return bad_request_error
+    except Exception as e:
+        logging.exception(e)
+        return unexpected_error
+    return str(response)
 
 
-@app.route('/usage',methods=['GET'])
+@app.route('/usage', methods=['GET'])
 def resource_usage():
     try:
+        keycloak_response = check_auth(request)
+        if keycloak_response.status_code == 400:
+            return bad_request_error
+        elif keycloak_response.status_code == 401:
+            return unauthorized_error
         period = request.args.get('period')
         type_ = request.args.get('type')
 
-        raw = get_usage({type_:Usage[type_]},period=range_[period])
-        result = mapping_metrics(*raw.keys(),*raw.values())
-        result.pop('metric_id',None)
+        raw = get_usage({type_: Usage[type_]}, period=range_[period])
+        result = mapping_metrics(*raw.keys(), *raw.values())
+        result.pop('metric_id', None)
         result = jsonify(result)
-    except (AttributeError, KeyError, TypeError, json.decoder.JSONDecodeError):
-        return Response('{"code": 400,"message": "Bad Request" }', status=400)
-    except:
-        return Response('{"code": 401,"message": "Unauthorized"}', status=401)
+    except (AttributeError, TypeError, json.decoder.JSONDecodeError) as e:
+        logging.exception(e)
+        return bad_request_error
+    except Exception as e:
+        logging.exception(e)
+        return unexpected_error
     return result
 
 
-@app.route('/capacity',methods=['GET'])
+@app.route('/capacity', methods=['GET'])
 def capacity():
     try:
+        keycloak_response = check_auth(request)
+        if keycloak_response.status_code == 400:
+            return bad_request_error
+        elif keycloak_response.status_code == 401:
+            return unauthorized_error
         period = request.args.get('period')
-        type_ = request.args.get('type',default='cap')
-        raw = get_usage({type_:Capacity[type_]},period=range_[period])
-        result = mapping_metrics(*raw.keys(),*raw.values())
-        result.pop('metric_id',None)
-        result.pop('type',None)
+        type_ = request.args.get('type', default='cap')
+        raw = get_usage({type_: Capacity[type_]}, period=range_[period])
+        result = mapping_metrics(*raw.keys(), *raw.values())
+        result.pop('metric_id', None)
+        result.pop('type', None)
         result = jsonify(result)
-    except (AttributeError, KeyError, TypeError, json.decoder.JSONDecodeError):
-        return Response('{"code": 400,"message": "Bad Request" }', status=400)
-    except:
-        return Response('{"code": 401,"message": "Unauthorized"}', status=401)
+    except (AttributeError, TypeError, json.decoder.JSONDecodeError) as e:
+        logging.exception(e)
+        return bad_request_error
+    except Exception as e:
+        logging.exception(e)
+        return unexpected_error
     return result
 
+
 if __name__ == '__main__':
-    os.environ['AWS_DEFAULT_REGION'] = aws_config.get('region')
-    os.environ['AWS_PROFILE'] = aws_config.get('profile')
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(insert_data_to_db, 'interval', weeks=2)
+    scheduler = BackgroundScheduler(timezone='Asia/Seoul')
+    scheduler.add_job(insert_price_to_db, 'interval', weeks=2)
     scheduler.start()
     app.run(port=5000)
