@@ -5,12 +5,11 @@ import requests
 from apscheduler.schedulers.background import BackgroundScheduler
 from database import Database
 from dotenv import load_dotenv
-from flask import Flask, Response, request, jsonify
+from flask import Flask, Response, request
 from price import Price
 from types import SimpleNamespace
 import logging
 from datetime import datetime
-from promql import get_usage, mapping_metrics, Usage, Capacity
 
 range_ = {"min": "5m", "time": "1h", "day": "1d", "week": "1w", "year": "1y"}
 
