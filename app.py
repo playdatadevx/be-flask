@@ -131,25 +131,24 @@ def cost():
             return bad_request_error
         elif keycloak_response.status_code == 401:
             return unauthorized_error
-        database = Database()
         period = request.args.get('period')
-        result = database.select_cost(period)
-        costs = []
-        for data in result:
-            costs.append(data[0])
-        last_data = result.pop()
+        db = Database()
+        res = db.select_usages('cost',period)
+        data = [val[0] for val in res]
+        unit = res[-1][1]
+        created_at = res[-1][2].strftime("%Y-%m-%d")
         response = {
-            "data": costs,
-            "unit": last_data[1],
-            "created_at": last_data[2].strftime("%Y-%m-%d %H:%M:%S")
-        }
+                "unit":unit,
+                "data":data,
+                "created_at":created_at
+                }
     except (AttributeError, TypeError, json.decoder.JSONDecodeError) as e:
         logging.exception(e)
         return bad_request_error
     except Exception as e:
         logging.exception(e)
         return unexpected_error
-    return str(response)
+    return response
 
 
 @ app.route('/exp-cost', methods=['GET'])
@@ -177,7 +176,7 @@ def exp_cost():
     except Exception as e:
         logging.exception(e)
         return unexpected_error
-    return str(response)
+    return response
 
 
 @app.route('/usage', methods=['GET'])
@@ -191,17 +190,24 @@ def resource_usage():
         period = request.args.get('period')
         type_ = request.args.get('type')
 
-        raw = get_usage({type_: Usage[type_]}, period=range_[period])
-        result = mapping_metrics(*raw.keys(), *raw.values())
-        result.pop('metric_id', None)
-        result = jsonify(result)
+        db = Database()
+        res = db.select_usages('usages',period,metric)
+        data = [val[0] for val in res]
+        unit = res[-1][1]
+        created_at = res[-1][2].strftime("%Y-%m-%d")
+        response = {
+                "type":metric,
+                "unit":unit,
+                "data":data,
+                "created_at":created_at
+                }
     except (AttributeError, TypeError, json.decoder.JSONDecodeError) as e:
         logging.exception(e)
         return bad_request_error
     except Exception as e:
         logging.exception(e)
         return unexpected_error
-    return result
+    return response
 
 
 @app.route('/capacity', methods=['GET'])
@@ -213,19 +219,24 @@ def capacity():
         elif keycloak_response.status_code == 401:
             return unauthorized_error
         period = request.args.get('period')
-        type_ = request.args.get('type', default='cap')
-        raw = get_usage({type_: Capacity[type_]}, period=range_[period])
-        result = mapping_metrics(*raw.keys(), *raw.values())
-        result.pop('metric_id', None)
-        result.pop('type', None)
-        result = jsonify(result)
+
+        db = Database()
+        res = db.select_usages('capacity',period)
+        data = [val[0] for val in res]
+        unit = '%'
+        created_at = res[-1][1].strftime("%Y-%m-%d")
+        response = {
+                "unit":unit,
+                "data":data,
+                "created_at":created_at
+                }
     except (AttributeError, TypeError, json.decoder.JSONDecodeError) as e:
         logging.exception(e)
         return bad_request_error
     except Exception as e:
         logging.exception(e)
         return unexpected_error
-    return result
+    return response
 
 
 if __name__ == '__main__':

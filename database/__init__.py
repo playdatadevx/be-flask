@@ -34,13 +34,13 @@ class Database:
            }
 
     def __init__(self):
-        host = os.environ.get('HOST')
-        user = os.environ.get('USER')
-        password = os.environ.get('PASSWORD')
-        database = os.environ.get('DATABASE')
-        port = int(os.environ.get('PORT'))
+        host = '127.0.0.1' #os.environ.get('HOST')
+        user = 'devx' #os.environ.get('USER')
+        password = 'encore123!' #os.environ.get('PASSWORD')
+        database = 'devx' #os.environ.get('DATABASE')
+        #port = int(os.environ.get('PORT'))
         self.conn = pymysql.connect(
-            host=host, user=user, password=password, db=database, port=port charset='utf8')
+            host=host, user=user, password=password, db=database, charset='utf8')
         self.curs = self.conn.cursor()
 
     def quotation(x):
@@ -134,7 +134,6 @@ class Database:
                   "month": f"months_of_{table}"}
         period_table = tables.get(period)
         column = Database.columns.get(period_table)
-        print(period_table,column)
         now = datetime.strptime(datetime.now().strftime("%Y, %m, %d, %H, %M, %S"),"%Y, %m, %d, %H, %M, %S")
         extra_sql = '' if metric==None else f'metric_id={Database.metrics_ids[metric]} AND '
         sql = f'SELECT {",".join(column)} FROM {table} WHERE '+extra_sql+ f'created_at BETWEEN NOW()- INTERVAL 1 {Database.period_conditions.get(period)} AND NOW() ORDER BY created_at ASC;'
