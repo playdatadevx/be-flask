@@ -9,10 +9,11 @@ load_dotenv()
 
 
 class Database:
-
+    agg = {'cost':'SUM','capacity':'AVG','usages':'AVG'}
     resources = {1: "cpu", 2: "memory", 3: "disk",
                  4: "storage", 5: "traffic", 6: "node"}
-    units = {1: "%", 2: "%", 3: "%", 4: "mb", 5: "Kbps", 6: "개수"}
+    metrics_ids = {v:k for k,v in resources.items()}
+    units = {1: "%", 2: "%", 3: "%", 4: "GB", 5: "Kbps", 6: "개수", 'cost':'USD'}
     period_conditions = {"time": "DAY", "day": "WEEK", "month": "YEAR"}
     columns = {"cost": ["cost", "unit", "created_at"],
                "days_of_cost": ["cost", "unit", "created_at"],
@@ -20,10 +21,17 @@ class Database:
                "capacity": ["capacity", "created_at"],
                "days_of_capacity": ["capacity", "created_at"],
                "months_capacity": ["capacity", "created_at"],
-               "resource_usage": ["resource_usage", "unit", "created_at"],
-               "days_of_usage": ["resource_usage", "unit", "created_at"],
-               "months_usage": ["resource_usage", "unit", "created_at"]
+               "usages": ["usages", "unit", "created_at"],
+               "days_of_usages": ["usages", "unit", "created_at"],
+               "months_of_usages": ["usages", "unit", "created_at"]
                }
+    prop = {
+            'price': 'price,created_at,unit,aws_service',
+            'cost': 'cost,created_at,unit',
+            'usages': 'usages,created_at,metric_id,unit',
+            'capacity': 'capacity,created_at',
+            'metric': 'metric'
+           }
 
     def __init__(self):
         host = os.environ.get('HOST')
@@ -32,81 +40,76 @@ class Database:
         database = os.environ.get('DATABASE')
         port = int(os.environ.get('PORT'))
         self.conn = pymysql.connect(
-            host=host, user=user, password=password, db=database, port=port, charset='utf8')
+            host=host, user=user, password=password, db=database, port=port charset='utf8')
         self.curs = self.conn.cursor()
 
     def quotation(x):
-        if type(x) == str:
-            return "{}".format(x)
-        else:
-            return x
+        if type(x) == str: return "{}".format(x)
+        else: return x
 
     def insert_metric(self, table, items):
-        prop = {
-            'price': 'price,created_at,unit,aws_service',
-            'price': 'price,created_at,unit,aws_service',
-            'cost': 'cost,created_at,unit,app',
-            'usages': 'metric_id,usages,created_at,unit',
-            'capacity': 'capacity,created_at',
-            'metric': 'metric'
-        }
-
-        sql_row = str([*map(Database.quotation, items)]
-                      ).replace('[', '(').replace(']', ')')
-
-        sql = f'INSERT INTO {table} ({prop[table]}) VALUES ' + sql_row
+        sql_row = str([*map(Database.quotation, items)]).replace('[', '(').replace(']', ')')
+        sql = f'INSERT INTO {table} ({Database.prop[table]}) VALUES ' + sql_row
         self.curs.execute(sql)
         self.conn.commit()
 
-    def avg_usage(self, cycle, table, now, m_id=None):
-        def ex(metric_id, string):
-            if metric_id == None:
-                return ''
-            else:
-                return string
-
-        if cycle == 'day':
-            target_table = table
-            time_formatter = "%Y-%m-%d"
-        elif cycle == 'month':
-            target_table = f'days_of_{table}'
-            time_formatter = "%Y-%m"
-
-        select_sql = f'select floor(avg({table})) from {target_table} where(DATE_FORMAT("{now}","{time_formatter}") = DATE_FORMAT(created_at,"{time_formatter}"))' + ex(
-            m_id, f' and metric_id={m_id}')+';'
-
-        self.curs.execute(select_sql)
-        result = int(self.curs.fetchall()[0][0])
-
-        insert_sql = f'insert into {cycle}s_of_{table} (' + ex(m_id, 'metric_id,') + f'{table},created_at' + ex(
-            m_id, ',unit') + ') VALUES (' + ex(m_id, f'{m_id},') + f'{result},"{now}"' + ex(m_id, f',"{Database.units[m_id]}"') + ');'
-        self.curs.execute(insert_sql)
-        self.conn.commit()
-        return
 
     # 일별 평균 사용량 Table 명(days_of_usage)
-    def insert_days(self, table):
+    def insert_days(self, table): # cost / capacity / usages [type]
         now = datetime.now().strftime("%Y-%m-%d")
-        metric_ids = len(Database.resources.keys())
+        values = []
+        sql = f'SELECT {Database.agg[table]}({table}) FROM {table} WHERE (DATE_FORMAT("{now}","%Y-%m-%d") = DATE_FORMAT(created_at,"%Y-%m-%d"))' 
+        extra_sql = ''
         if table == 'usages':
+            metric_ids = int(self.select_query('SELECT MAX(id) FROM metric')[0][0])
             for metric_id in range(1, metric_ids+1):
-                if metric_id == 4:
-                    continue   # Storage 부분은 아직 데이터가 없어 생략
-                self.avg_usage('day', table, now, m_id=metric_id)
+                extra_sql = f' AND metric_id={metric_id}'
+                values.append(float(self.select_query(sql+extra_sql)[0][0]))
         else:
-            self.avg_usage('day', metric, now)
+            values.append(float(self.select_query(sql+extra_sql)[0][0]))
+        sql = f'INSERT INTO days_of_{table} ({Database.prop[table]}) VALUES '
+        if table == 'usages':
+            for metric_id in range(1,metric_ids+1):
+                item = [values[metric_id-1],now,metric_id,Database.units.get(metric_id)]
+                extra_sql = str([*map(Database.quotation, item)]).replace('[','(').replace(']',')')
+                self.insert_query(sql+extra_sql)
+        else:
+            item = [key for key in [values[0],now,Database.units.get(table,None)] if key != None]
+            extra_sql = str([*map(Database.quotation, item)]).replace('[','(').replace(']',')')
+            self.insert_query(sql+extra_sql)
+        return   
 
     # 월별 평균 사용량 Table 명 (months_of_usage)
     def insert_months(self, table):
         now = datetime.now().strftime("%Y-%m-%d")
-        metric_ids = len(Database.resources.keys())
+        values = []
+        sql = f'SELECT {Database.agg[table]}({table}) FROM days_of_{table} WHERE (DATE_FORMAT("{now}","%Y-%m") = DATE_FORMAT(created_at,"%Y-%m"))'
+        extra_sql = ''
         if table == 'usages':
+            metric_ids = int(self.select_query('SELECT MAX(id) FROM metric')[0][0])
             for metric_id in range(1, metric_ids+1):
-                if metric_id == 4:
-                    continue   # Storage 부분은 아직 데이터가 없어 생략
-                self.avg_usage('month', table, now, m_id=metric_id)
+                extra_sql = f' AND metric_id={metric_id}'
+                values.append(float(self.select_query(sql+extra_sql)[0][0]))
         else:
-            self.avg_usage('month', table, now)
+            values.append(float(self.select_query(sql+extra_sql)[0][0]))
+        sql = f'INSERT INTO months_of_{table} ({Database.prop[table]}) VALUES '
+        if table == 'usages':
+            for metric_id in range(1,metric_ids+1):
+                item = [values[metric_id-1],now,metric_id,Database.units.get(metric_id)]
+                extra_sql = str([*map(Database.quotation, item)]).replace('[','(').replace(']',')')
+                self.insert_query(sql+extra_sql)
+        else:
+            item = [key for key in [values[0],now,Database.units.get(table,None)] if key != None]
+            extra_sql = str([*map(Database.quotation, item)]).replace('[','(').replace(']',')')
+            self.insert_query(sql+extra_sql)
+        return
+
+    def insert_query(self,query):
+        self.curs.execute(query)
+        self.conn.commit()
+    def select_query(self,query):
+        self.curs.execute(query)
+        return self.curs.fetchall()
 
     def select_cost(self, period):
         tables = {"time": "cost", "day": "days_of_cost",
@@ -124,4 +127,21 @@ class Database:
         self.curs.execute(sql)
         result = self.curs.fetchall()
         self.conn.commit()
+        return result
+    
+    def select_usages(self,table,period,metric=None):
+        tables = {"time": table, "day": f"days_of_{table}",
+                  "month": f"months_of_{table}"}
+        period_table = tables.get(period)
+        column = Database.columns.get(period_table)
+        print(period_table,column)
+        now = datetime.strptime(datetime.now().strftime("%Y, %m, %d, %H, %M, %S"),"%Y, %m, %d, %H, %M, %S")
+        extra_sql = '' if metric==None else f'metric_id={Database.metrics_ids[metric]} AND '
+        sql = f'SELECT {",".join(column)} FROM {table} WHERE '+extra_sql+ f'created_at BETWEEN NOW()- INTERVAL 1 {Database.period_conditions.get(period)} AND NOW() ORDER BY created_at ASC;'
+        result = list(self.select_query(sql))
+
+        sql = f'SELECT {Database.agg[table]}({table}) FROM {table} WHERE ' + extra_sql + '(DATE_FORMAT(NOW(),"%Y-%m") = DATE_FORMAT(created_at,"%Y-%m"))' 
+        res = float(self.select_query(sql)[0][0])
+        item = tuple([key for key in [round(res,2),Database.units.get(table if metric==None else Database.metrics_ids[metric],None),now] if key!=None])
+        result.append(item)
         return result

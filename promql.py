@@ -6,19 +6,30 @@ from database import Database
 database = Database()
 
 
-Capacity = {'cap':'avg(avg_over_time((sum without () (kube_pod_container_status_ready{namespace=~"kube-system", pod=~"aws-node.*"}) / count without ()(kube_pod_container_status_ready{namespace=~"kube-system", pod=~"aws-node.*"}))[required:]))*100'}
+Capacity = {
+        'capacity':'avg(avg_over_time((sum without () (kube_pod_container_status_ready{namespace=~"kube-system", pod=~"aws-node.*"}) / count without ()(kube_pod_container_status_ready{namespace=~"kube-system", pod=~"aws-node.*"}))[1h:]))*100'
+        }
 
-Usage={
- 'disk':'sum(node_filesystem_size_bytes{kubernetes_node=""} - node_filesystem_avail_bytes{kubernetes_node=""}) by (kubernetes_node) / sum(node_filesystem_avail_bytes{kubernetes_node=""}) by (kubrenetes_node)*100',
- 'memory':'avg((node_memory_MemAvailable_bytes + on(instance) group_left(nodename) node_uname_info) / ((node_memory_MemTotal_bytes + on(instance) group_left(nodename) node_uname_info))*100)',
+Usages = {
+        'cpu':'sum((sum by (instance,nodename) (irate(node_cpu_seconds_total{mode!~"guest.*|idle|iowait"}[1h])) + on(instance) group_left(nodename) node_uname_info) - 1)/count(kube_node_created)*100',
+        'memory':'avg((node_memory_MemAvailable_bytes + on(instance) group_left(nodename) node_uname_info) / ((node_memory_MemTotal_bytes + on(instance) group_left(nodename) node_uname_info))*100)',
+        'disk':'sum(node_filesystem_size_bytes{kubernetes_node=""} - node_filesystem_avail_bytes{kubernetes_node=""}) by (kubernetes_node) / sum(node_filesystem_size_bytes{kubernetes_node=""}) by (kubernetes_node)*100',
+        'storage':'sum(kube_persistentvolume_capacity_bytes)/1000000000',
+        'traffic':'sum (rate(node_network_receive_bytes_total[1h]))/1000',
+        'node':'count(kube_node_created)'
+        }
 
- 'cpu':'((sum by (instance,nodename) (irate(node_cpu_seconds_total{mode!~"guest.*|idle|iowait"}[required])) + on(instance) group_left(nodename) node_uname_info) - 1)*100',
- 'traffic':'sum (rate(node_network_receive_bytes_total[required]))/1000',
+url = "https://pm-server.devxmonitor.click/api/v1/"
 
- 'node':'count(kube_node_created)'
-}
+def promql(query,url=url+'query'):
+    if url.split('/')[-1] != 'query':
+        response = requests.get(url+query).json()
+    else:
+        params = {"query":query}
+        response = requests.get(url,params=params).json()
+    result = response['data']['result']
+    return result
 
-url = "https://pm-server.devxmonitor.click/api/v1/query"
 
 metric_ids = {'cpu':1,'memory':2,'disk':3,'traffic':5,'node':6,'cap':10}
 units = {'cpu':'%','memory':'%','disk':'%','traffic':'Kbps', 'node': '개수','cap':'%'}
