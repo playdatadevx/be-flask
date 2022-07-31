@@ -155,12 +155,11 @@ class Database:
         sql = f'SELECT {",".join(column)} FROM {table} WHERE '+extra_sql + \
             f'created_at BETWEEN NOW()- INTERVAL 1 {Database.period_conditions.get(period)} AND NOW() ORDER BY created_at ASC;'
         result = list(self.select_query(sql))
-
-        sql = f'SELECT {Database.agg[table]}({table}) FROM {table} WHERE ' + \
-            extra_sql + \
-            '(DATE_FORMAT(NOW(),"%Y-%m") = DATE_FORMAT(created_at,"%Y-%m"))'
-        res = float(self.select_query(sql)[0][0])
-        item = tuple([key for key in [round(res, 2), Database.units.get(
-            table if metric == None else Database.metrics_ids[metric], None), now] if key != None])
-        result.append(item)
+        
+        if table!=period_table:
+            sql = f'SELECT {Database.agg[table]}({table}) FROM {table} WHERE ' + extra_sql + '(DATE_FORMAT(NOW(),"%Y-%m-%d") = DATE_FORMAT(created_at,"%Y-%m-%d"))' 
+            res = float(self.select_query(sql)[0][0])
+            item = tuple([key for key in [round(res,2),Database.units.get(table if metric==None else Database.metrics_ids[metric],None),now] if key!=None])
+            result.append(item)
+            
         return result
