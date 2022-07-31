@@ -5,12 +5,11 @@ import requests
 from apscheduler.schedulers.background import BackgroundScheduler
 from database import Database
 from dotenv import load_dotenv
-from flask import Flask, Response, request, jsonify
+from flask import Flask, Response, request
 from price import Price
 from types import SimpleNamespace
 import logging
 from datetime import datetime
-from promql import get_usage, mapping_metrics, Usage, Capacity
 
 range_ = {"min": "5m", "time": "1h", "day": "1d", "week": "1w", "year": "1y"}
 
@@ -133,15 +132,15 @@ def cost():
             return unauthorized_error
         period = request.args.get('period')
         db = Database()
-        res = db.select_usages('cost',period)
+        res = db.select_usages('cost', period)
         data = [val[0] for val in res]
         unit = res[-1][1]
         created_at = res[-1][2].strftime("%Y-%m-%d")
         response = {
-                "unit":unit,
-                "data":data,
-                "created_at":created_at
-                }
+            "unit": unit,
+            "data": data,
+            "created_at": created_at
+        }
     except (AttributeError, TypeError, json.decoder.JSONDecodeError) as e:
         logging.exception(e)
         return bad_request_error
@@ -188,19 +187,19 @@ def resource_usage():
         elif keycloak_response.status_code == 401:
             return unauthorized_error
         period = request.args.get('period')
-        type_ = request.args.get('type')
+        metric = request.args.get('type')
 
         db = Database()
-        res = db.select_usages('usages',period,metric)
+        res = db.select_usages('usages', period, metric)
         data = [val[0] for val in res]
         unit = res[-1][1]
         created_at = res[-1][2].strftime("%Y-%m-%d")
         response = {
-                "type":metric,
-                "unit":unit,
-                "data":data,
-                "created_at":created_at
-                }
+            "type": metric,
+            "unit": unit,
+            "data": data,
+            "created_at": created_at
+        }
     except (AttributeError, TypeError, json.decoder.JSONDecodeError) as e:
         logging.exception(e)
         return bad_request_error
@@ -221,15 +220,15 @@ def capacity():
         period = request.args.get('period')
 
         db = Database()
-        res = db.select_usages('capacity',period)
+        res = db.select_usages('capacity', period)
         data = [val[0] for val in res]
         unit = '%'
         created_at = res[-1][1].strftime("%Y-%m-%d")
         response = {
-                "unit":unit,
-                "data":data,
-                "created_at":created_at
-                }
+            "unit": unit,
+            "data": data,
+            "created_at": created_at
+        }
     except (AttributeError, TypeError, json.decoder.JSONDecodeError) as e:
         logging.exception(e)
         return bad_request_error
