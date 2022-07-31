@@ -59,12 +59,12 @@ def insert_price_to_db():
     database = Database()
     now = datetime.now()
     created_at = now.strftime("%Y-%m-%d %H:%M:%S")
-    database.insert_metric('price', ec2_price.price,
-                           created_at, ec2_price.unit, ec2_price.description)
-    database.insert_price('price', ebs_price.price,
-                          created_at, ebs_price.unit, ebs_price.description)
-    database.insert_price('price', eks_price.price,
-                          created_at, eks_price.unit, eks_price.description)
+    database.insert_metric('price', [ec2_price.price,
+                           created_at, ec2_price.unit, ec2_price.description])
+    database.insert_metric('price', [ebs_price.price,
+                          created_at, ebs_price.unit, ebs_price.description])
+    database.insert_metric('price', [eks_price.price,
+                          created_at, eks_price.unit, eks_price.description])
 
 
 @app.route('/login', methods=['POST'])
@@ -133,6 +133,7 @@ def cost():
         period = request.args.get('period')
         db = Database()
         res = db.select_usages('cost', period)
+        print(res)
         data = [val[0] for val in res]
         unit = res[-1][1]
         created_at = res[-1][2].strftime("%Y-%m-%d")

@@ -41,7 +41,7 @@ class Database:
         database = os.environ.get('DATABASE')
         port = int(os.environ.get('PORT'))
         self.conn = pymysql.connect(
-            host=host, user=user, password=password, db=database, port=port, charset='utf8')
+            host=host, user=user, password=password, db=database,port=port charset='utf8')
         self.curs = self.conn.cursor()
 
     def quotation(x):
@@ -147,15 +147,17 @@ class Database:
     def select_usages(self, table, period, metric=None):
         tables = {"time": table, "day": f"days_of_{table}",
                   "month": f"months_of_{table}"}
+        print(table,period)
         period_table = tables.get(period)
         column = Database.columns.get(period_table)
         now = datetime.strptime(datetime.now().strftime(
             "%Y, %m, %d, %H, %M, %S"), "%Y, %m, %d, %H, %M, %S")
         extra_sql = '' if metric == None else f'metric_id={Database.metrics_ids[metric]} AND '
-        sql = f'SELECT {",".join(column)} FROM {table} WHERE '+extra_sql + \
+        sql = f'SELECT {",".join(column)} FROM {period_table} WHERE '+extra_sql + \
             f'created_at BETWEEN NOW()- INTERVAL 1 {Database.period_conditions.get(period)} AND NOW() ORDER BY created_at ASC;'
+        print(sql)
         result = list(self.select_query(sql))
-        
+        print(len(result))
         if table!=period_table:
             sql = f'SELECT {Database.agg[table]}({table}) FROM {table} WHERE ' + extra_sql + '(DATE_FORMAT(NOW(),"%Y-%m-%d") = DATE_FORMAT(created_at,"%Y-%m-%d"))' 
             res = float(self.select_query(sql)[0][0])
