@@ -1,6 +1,7 @@
 import calendar
 import json
 import os
+from pymysql import NULL
 import requests
 from apscheduler.schedulers.background import BackgroundScheduler
 from database import Database
@@ -10,6 +11,7 @@ from price import Price
 from types import SimpleNamespace
 import logging
 from datetime import datetime
+from flask_cors import CORS
 
 range_ = {"min": "5m", "time": "1h", "day": "1d", "week": "1w", "year": "1y"}
 
@@ -18,6 +20,7 @@ logging.basicConfig(filename=f'./logs/{today}.log')
 
 
 app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 load_dotenv()
 
@@ -62,9 +65,9 @@ def insert_price_to_db():
     database.insert_metric('price', [ec2_price.price,
                            created_at, ec2_price.unit, ec2_price.description])
     database.insert_metric('price', [ebs_price.price,
-                          created_at, ebs_price.unit, ebs_price.description])
+                                     created_at, ebs_price.unit, ebs_price.description])
     database.insert_metric('price', [eks_price.price,
-                          created_at, eks_price.unit, eks_price.description])
+                                     created_at, eks_price.unit, eks_price.description])
 
 
 @app.route('/login', methods=['POST'])
@@ -133,10 +136,9 @@ def cost():
         period = request.args.get('period')
         db = Database()
         res = db.select_usages('cost', period)
-        print(res)
         data = [val[0] for val in res]
         unit = res[-1][1]
-        created_at = res[-1][2].strftime("%Y-%m-%d")
+        created_at = res[-1][2].strftime("%Y-%m-%d %H:%M:%S")
         response = {
             "unit": unit,
             "data": data,
@@ -164,9 +166,12 @@ def exp_cost():
         today = datetime.today()
         number_of_days = calendar.monthrange(today.year, today.month)[1]
         sum_cost = result[0][0]
-        exp_cost = sum_cost + (sum_cost / today.day * number_of_days)
+        if(sum_cost == NULL):
+            exp_cost = database.select_last_month_cost()
+        else:
+            exp_cost = sum_cost + ((sum_cost / today.day) * number_of_days)
         response = {
-            "data": exp_cost,
+            "data": [exp_cost],
             "unit": result[0][1],
             "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
@@ -194,7 +199,7 @@ def resource_usage():
         res = db.select_usages('usages', period, metric)
         data = [val[0] for val in res]
         unit = res[-1][1]
-        created_at = res[-1][2].strftime("%Y-%m-%d")
+        created_at = res[-1][2].strftime("%Y-%m-%d %H:%M:%S")
         response = {
             "type": metric,
             "unit": unit,
@@ -224,7 +229,7 @@ def capacity():
         res = db.select_usages('capacity', period)
         data = [val[0] for val in res]
         unit = '%'
-        created_at = res[-1][1].strftime("%Y-%m-%d")
+        created_at = res[-1][1].strftime("%Y-%m-%d %H:%M:%S")
         response = {
             "unit": unit,
             "data": data,

@@ -18,7 +18,7 @@ units = {
     'disk': '%',
     'storage': 'GB',
     'traffic': 'Kbps',
-    'node': '개수',
+    'node': '개',
 }
 
 query = {
