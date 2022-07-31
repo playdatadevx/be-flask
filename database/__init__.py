@@ -34,13 +34,13 @@ class Database:
            }
 
     def __init__(self):
-        host = '127.0.0.1' #os.environ.get('HOST')
-        user = 'devx' #os.environ.get('USER')
-        password = 'encore123!' #os.environ.get('PASSWORD')
-        database = 'devx' #os.environ.get('DATABASE')
-        #port = int(os.environ.get('PORT'))
+        host = os.environ.get('HOST')
+        user = os.environ.get('USER')
+        password = os.environ.get('PASSWORD')
+        database = os.environ.get('DATABASE')
+        port = int(os.environ.get('PORT'))
         self.conn = pymysql.connect(
-            host=host, user=user, password=password, db=database, charset='utf8')
+            host=host, user=user, password=password, db=database, port=port, charset='utf8')
         self.curs = self.conn.cursor()
 
     def quotation(x):
@@ -138,9 +138,9 @@ class Database:
         extra_sql = '' if metric==None else f'metric_id={Database.metrics_ids[metric]} AND '
         sql = f'SELECT {",".join(column)} FROM {table} WHERE '+extra_sql+ f'created_at BETWEEN NOW()- INTERVAL 1 {Database.period_conditions.get(period)} AND NOW() ORDER BY created_at ASC;'
         result = list(self.select_query(sql))
-
-        sql = f'SELECT {Database.agg[table]}({table}) FROM {table} WHERE ' + extra_sql + '(DATE_FORMAT(NOW(),"%Y-%m") = DATE_FORMAT(created_at,"%Y-%m"))' 
-        res = float(self.select_query(sql)[0][0])
-        item = tuple([key for key in [round(res,2),Database.units.get(table if metric==None else Database.metrics_ids[metric],None),now] if key!=None])
-        result.append(item)
+        if table!=period_table:
+            sql = f'SELECT {Database.agg[table]}({table}) FROM {table} WHERE ' + extra_sql + '(DATE_FORMAT(NOW(),"%Y-%m-%d") = DATE_FORMAT(created_at,"%Y-%m-%d"))' 
+            res = float(self.select_query(sql)[0][0])
+            item = tuple([key for key in [round(res,2),Database.units.get(table if metric==None else Database.metrics_ids[metric],None),now] if key!=None])
+            result.append(item)
         return result
