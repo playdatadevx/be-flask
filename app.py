@@ -6,11 +6,12 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from database import Database
 from dotenv import load_dotenv
 from flask import Flask, Response, request
-from price import Price
+from price import Price, get_products
 from types import SimpleNamespace
 import logging
 from datetime import datetime
 from flask_cors import CORS
+from cron_insert import insert_cost
 
 range_ = {"min": "5m", "time": "1h", "day": "1d", "week": "1w", "year": "1y"}
 
@@ -54,19 +55,19 @@ def check_auth(request):
 
 
 def insert_price_to_db():
-    ec2_price = Price().get_products('ec2')
-    ebs_price = Price().get_products('ebs')
-    eks_price = Price().get_products('eks')
+    ec2_price = get_products('ec2')
+    ebs_price = get_products('ebs')
+    eks_price = get_products('eks')
 
     database = Database()
     now = datetime.now()
     created_at = now.strftime("%Y-%m-%d %H:%M:%S")
-    database.insert_metric('price', [ec2_price.price,
-                           created_at, ec2_price.unit, ec2_price.description])
-    database.insert_metric('price', [ebs_price.price,
-                                     created_at, ebs_price.unit, ebs_price.description])
-    database.insert_metric('price', [eks_price.price,
-                                     created_at, eks_price.unit, eks_price.description])
+    database.insert_metric(
+        'price', [ec2_price.price, created_at, ec2_price.unit, ec2_price.description])
+    database.insert_metric(
+        'price', [ebs_price.price, created_at, ebs_price.unit, ebs_price.description])
+    database.insert_metric(
+        'price', [eks_price.price, created_at, eks_price.unit, eks_price.description])
 
 
 @app.route('/login', methods=['POST'])
@@ -246,8 +247,28 @@ def capacity():
     return response
 
 
+scheduler = BackgroundScheduler(timezone='Asia/Seoul')
+logging.getLogger('apscheduler').setLevel(logging.DEBUG)
+
+
+scheduler.add_job(insert_price_to_db, 'interval',
+                  weeks=2, start_date=datetime.now())
+scheduler.add_job(Database.insert_days('cost'), 'interval',
+                  minutes=5, start_date=datetime.now())
+# scheduler.add_job(Database.insert_days('usages'),
+#                   'interval', minutes=5, start_date=datetime.now())
+# scheduler.add_job(Database.insert_days('capacity'),
+#                   'interval', minutes=5, start_date=datetime.now())
+# scheduler.add_job(Database.insert_months('cost'),
+#                   'interval', minutes=5, start_date=datetime.now())
+# scheduler.add_job(Database.insert_months('usages'),
+#                   'interval', minutes=5, start_date=datetime.now())
+# scheduler.add_job(Database.insert_months('capacity'),
+#                   'interval', minutes=5, start_date=datetime.now())
+# scheduler.add_job(insert_cost(), 'interval',
+#                   minutes=5, start_date=datetime.now())
+scheduler.start()
+
+
 if __name__ == '__main__':
-    scheduler = BackgroundScheduler(timezone='Asia/Seoul')
-    scheduler.add_job(insert_price_to_db, 'interval', weeks=2)
-    scheduler.start()
-    app.run(port=5000)
+    app.run(host='0.0.0.0', port=5000)
