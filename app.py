@@ -1,7 +1,6 @@
 import calendar
 import json
 import os
-from pymysql import NULL
 import requests
 from apscheduler.schedulers.background import BackgroundScheduler
 from database import Database
@@ -166,13 +165,16 @@ def exp_cost():
         today = datetime.today()
         number_of_days = calendar.monthrange(today.year, today.month)[1]
         sum_cost = result[0][0]
-        if(sum_cost == NULL):
-            exp_cost = database.select_last_month_cost()
+        unit = result[0][1]
+        if(sum_cost != int):
+            last_month_cost = database.select_last_month_cost()
+            exp_cost = last_month_cost[0][0]
+            unit = last_month_cost[0][1]
         else:
             exp_cost = sum_cost + ((sum_cost / today.day) * number_of_days)
         response = {
             "data": [exp_cost],
-            "unit": result[0][1],
+            "unit": unit,
             "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
     except (AttributeError, TypeError, json.decoder.JSONDecodeError) as e:

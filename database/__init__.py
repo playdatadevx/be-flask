@@ -134,7 +134,7 @@ class Database:
         return result
 
     def select_last_month_cost(self):
-        sql = 'SELECT cost, unit FROM months_of_cost WHERE created_at =(NOW() - interval 1 month);'
+        sql = 'SELECT cost, unit FROM months_of_cost WHERE YEAR(created_at) = YEAR(CURRENT_DATE - INTERVAL 1 MONTH) AND MONTH(created_at) = MONTH(CURRENT_DATE - INTERVAL 1 MONTH)'
         self.curs.execute(sql)
         result = self.curs.fetchall()
         self.conn.commit()
