@@ -1,7 +1,11 @@
 from pron_job import *
 from database import Database
+import logging
+from datetime import datetime
 
 # metrics , metrics_ids , units , query
+today = datetime.now().date()
+logging.basicConfig(filename=f'./logs/{today}.log')
 
 db = Database()
 
@@ -27,16 +31,16 @@ def insert_cost():
     date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     item = [value, date, unit]
 
-    print('=======  Start  Insert cost To DATABASE  =======')
+    logging('=======  Start  Insert cost To DATABASE  =======')
     db.insert_metric(table, item)
-    print('=======  Finished Inserting cost  =======')
+    logging('=======  Finished Inserting cost  =======')
     return
 
 
 def start_insert(metrics=metrics, op='first'):
-    print('=======  Start  Insert metrics To DATABASE  =======')
+    logging('=======  Start  Insert metrics To DATABASE  =======')
     for metric in metrics:
         table, item = insert_item(metric, op)
         db.insert_metric(table, item)
-    print('=======  Finished Inserting metrics  =======')
+    logging('=======  Finished Inserting metrics  =======')
     return

@@ -1,10 +1,14 @@
+import logging
+import os
 import requests
 from database import Database
+from datetime import datetime
 
 database = Database()
 
-
-url = "https://pm-server.devxmonitor.click/api/v1"
+today = datetime.now().date()
+url = os.environ.get('PROMETHEUS_SERVER')
+logging.basicConfig(filename=f'./logs/{today}.log')
 
 
 def promql(query, url=url+'query'):
