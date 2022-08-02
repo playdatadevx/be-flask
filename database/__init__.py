@@ -14,7 +14,7 @@ class Database:
                  4: "storage", 5: "traffic", 6: "node"}
     metrics_ids = {v: k for k, v in resources.items()}
     units = {1: "%", 2: "%", 3: "%", 4: "GB",
-             5: "Kbps", 6: "개수", 'cost': 'USD'}
+             5: "Kbps", 6: "개", 'cost': 'USD'}
     period_conditions = {"time": "DAY", "day": "WEEK", "month": "YEAR"}
     columns = {"cost": ["cost", "unit", "created_at"],
                "days_of_cost": ["cost", "unit", "created_at"],
