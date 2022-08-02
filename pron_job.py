@@ -57,7 +57,8 @@ def make_format(metric, op='first'):
 def insert_item(metric, op='first'):
     value = make_format(metric, op)[0]
     unit = units.get(metric)
+    table = 'usages' if not metric == 'capacity' else 'capacity'
     date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     item = [key for key in [value, date,
                             metric_ids.get(metric), unit] if key != None]
-    return item
+    return table, item

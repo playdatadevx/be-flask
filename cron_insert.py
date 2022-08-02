@@ -1,4 +1,5 @@
 from pron_job import *
+from cron_insert import *
 from database import Database
 import logging
 from datetime import datetime
@@ -11,7 +12,7 @@ db = Database()
 
 
 def selecting():
-    price_sql = 'SELECT price FROM price'
+    price_sql = 'SELECT price FROM price ORDER BY created_at DESC LIMIT 0, 3'
     usages_sql = 'SELECT usages FROM usages WHERE metric_id IN (SELECT id FROM metric WHERE metric IN ("storage_usage","node_num"))and (created_at >= DATE_ADD(NOW(),INTERVAL -1 HOUR))'
     ec2, ebs, eks = db.select_query(price_sql)
     storage, node = db.select_query(usages_sql)
@@ -31,16 +32,16 @@ def insert_cost():
     date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     item = [value, date, unit]
 
-    logging('=======  Start  Insert cost To DATABASE  =======')
+    logging.info('=======  Start  Insert cost To DATABASE  =======')
     db.insert_metric(table, item)
-    logging('=======  Finished Inserting cost  =======')
+    logging.info('=======  Finished Inserting cost  =======')
     return
 
 
 def start_insert(metrics=metrics, op='first'):
-    logging('=======  Start  Insert metrics To DATABASE  =======')
+    logging.info('=======  Start  Insert metrics To DATABASE  =======')
     for metric in metrics:
         table, item = insert_item(metric, op)
         db.insert_metric(table, item)
-    logging('=======  Finished Inserting metrics  =======')
+    logging.info('=======  Finished Inserting metrics  =======')
     return

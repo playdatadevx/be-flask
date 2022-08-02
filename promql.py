@@ -1,4 +1,3 @@
-import logging
 import os
 import requests
 from database import Database
@@ -8,7 +7,6 @@ database = Database()
 
 today = datetime.now().date()
 url = os.environ.get('PROMETHEUS_SERVER')
-logging.basicConfig(filename=f'./logs/{today}.log')
 
 
 def promql(query, url=url+'query'):

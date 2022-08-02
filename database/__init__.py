@@ -2,8 +2,8 @@ import datetime
 import os
 import pymysql
 from dotenv import load_dotenv
-from datetime import datetime
-
+from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 
 load_dotenv()
 
@@ -61,8 +61,9 @@ class Database:
 
     def insert_days(self, table):  # cost / capacity / usages [type]
         now = datetime.now().strftime("%Y-%m-%d")
+        yesterday = (datetime.now() - timedelta(1)).strftime("%Y-%m-%d")
         values = []
-        sql = f'SELECT {Database.agg[table]}({table}) FROM {table} WHERE (DATE_FORMAT("{now}","%Y-%m-%d") = DATE_FORMAT(created_at,"%Y-%m-%d"))'
+        sql = f'SELECT {Database.agg[table]}({table}) FROM {table} WHERE (DATE_FORMAT("{yesterday}","%Y-%m-%d") = DATE_FORMAT(created_at,"%Y-%m-%d"))'
         extra_sql = ''
         if table == 'usages':
             metric_ids = int(self.select_query(
@@ -91,8 +92,9 @@ class Database:
     # 월별 평균 사용량 Table 명 (months_of_usage)
     def insert_months(self, table):
         now = datetime.now().strftime("%Y-%m-%d")
+        last_month = (datetime.now() - relativedelta(months=1))
         values = []
-        sql = f'SELECT {Database.agg[table]}({table}) FROM days_of_{table} WHERE (DATE_FORMAT("{now}","%Y-%m") = DATE_FORMAT(created_at,"%Y-%m"))'
+        sql = f'SELECT {Database.agg[table]}({table}) FROM days_of_{table} WHERE (DATE_FORMAT("{last_month}","%Y-%m") = DATE_FORMAT(created_at,"%Y-%m"))'
         extra_sql = ''
         if table == 'usages':
             metric_ids = int(self.select_query(

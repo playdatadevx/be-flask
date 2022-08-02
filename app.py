@@ -11,13 +11,12 @@ from types import SimpleNamespace
 import logging
 from datetime import datetime
 from flask_cors import CORS
-from cron_insert import insert_cost
+from cron_insert import insert_cost, start_insert
 
 range_ = {"min": "5m", "time": "1h", "day": "1d", "week": "1w", "year": "1y"}
 
 today = datetime.now().date()
 logging.basicConfig(filename=f'./logs/{today}.log')
-
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -68,6 +67,20 @@ def insert_price_to_db():
         'price', [ebs_price.price, created_at, ebs_price.unit, ebs_price.description])
     database.insert_metric(
         'price', [eks_price.price, created_at, eks_price.unit, eks_price.description])
+
+
+def insert_days_of_data_to_db():
+    database = Database()
+    database.insert_days('cost')
+    database.insert_days('usages')
+    database.insert_days('capacity')
+
+
+def insert_months_of_data_to_db():
+    database = Database()
+    database.insert_months('cost')
+    database.insert_months('usages')
+    database.insert_months('capacity')
 
 
 @app.route('/login', methods=['POST'])
@@ -250,23 +263,12 @@ def capacity():
 scheduler = BackgroundScheduler(timezone='Asia/Seoul')
 logging.getLogger('apscheduler').setLevel(logging.DEBUG)
 
-
 scheduler.add_job(insert_price_to_db, 'interval',
                   weeks=2, start_date=datetime.now())
-scheduler.add_job(Database.insert_days('cost'), 'interval',
-                  minutes=5, start_date=datetime.now())
-# scheduler.add_job(Database.insert_days('usages'),
-#                   'interval', minutes=5, start_date=datetime.now())
-# scheduler.add_job(Database.insert_days('capacity'),
-#                   'interval', minutes=5, start_date=datetime.now())
-# scheduler.add_job(Database.insert_months('cost'),
-#                   'interval', minutes=5, start_date=datetime.now())
-# scheduler.add_job(Database.insert_months('usages'),
-#                   'interval', minutes=5, start_date=datetime.now())
-# scheduler.add_job(Database.insert_months('capacity'),
-#                   'interval', minutes=5, start_date=datetime.now())
-# scheduler.add_job(insert_cost(), 'interval',
-#                   minutes=5, start_date=datetime.now())
+scheduler.add_job(start_insert, 'cron', minute=1)
+scheduler.add_job(insert_days_of_data_to_db, 'cron', hour=0, minute=1)
+scheduler.add_job(insert_months_of_data_to_db, 'cron', day=1, hour=0, minute=1)
+scheduler.add_job(insert_cost, 'cron', minute=1)
 scheduler.start()
 
 
