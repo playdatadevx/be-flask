@@ -264,7 +264,7 @@ scheduler = BackgroundScheduler(timezone='Asia/Seoul')
 logging.getLogger('apscheduler').setLevel(logging.DEBUG)
 
 scheduler.add_job(insert_price_to_db, 'interval',
-                  weeks=2, start_date=datetime.now())
+                  weeks=2, start_date=datetime.now(), next_run_time=datetime.now())
 scheduler.add_job(start_insert, 'cron', minute=1)
 scheduler.add_job(insert_days_of_data_to_db, 'cron', hour=0, minute=1)
 scheduler.add_job(insert_months_of_data_to_db, 'cron', day=1, hour=0, minute=1)
