@@ -157,6 +157,10 @@ class Database:
             sql = f'SELECT {Database.agg[table]}({table}) FROM {table} WHERE ' + extra_sql + \
                 '(DATE_FORMAT(NOW(),"%Y-%m-%d") = DATE_FORMAT(created_at,"%Y-%m-%d"))'
             res = float(self.select_query(sql)[0][0])
+            if table == "cost" and "months" in period_table:
+                sql = f'SELECT {Database.agg[table]}({table}) FROM days_of_{table} WHERE ' + extra_sql + \
+                    '(DATE_FORMAT(NOW(),"%Y-%m") = DATE_FORMAT(created_at,"%Y-%m"))'
+                res += float(self.select_query(sql)[0][0])
             item = tuple([key for key in [round(res, 2), Database.units.get(
                 table if metric == None else Database.metrics_ids[metric], None), now] if key != None])
             result.append(item)
