@@ -265,7 +265,7 @@ def capacity():
 
 
 scheduler = BackgroundScheduler(
-    timezone='Asia/Seoul', misfire_grace_time=3600)
+    timezone='Asia/Seoul', misfire_grace_time=6000)
 logging.getLogger('apscheduler').setLevel(logging.DEBUG)
 
 scheduler.add_job(insert_price_to_db, 'interval',
