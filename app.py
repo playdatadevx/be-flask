@@ -149,9 +149,14 @@ def cost():
         period = request.args.get('period')
         db = Database()
         res = db.select_usages('cost', period)
-        data = [val[0] for val in res]
-        unit = res[-1][1]
-        created_at = res[-1][2].strftime("%Y-%m-%d %H:%M:%S")
+        if len(res) > 0:
+            data = [val[0] for val in res]
+            unit = res[-1][1]
+            created_at = res[-1][2].strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            data = [0]
+            unit = ''
+            created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         response = {
             "unit": unit,
             "data": data,
@@ -182,12 +187,12 @@ def exp_cost():
         unit = result[0][1]
         if(sum_cost != int):
             last_month_cost = database.select_last_month_cost()
-            if(len(last_month_cost) == 0):
-                exp_cost = 0
-                unit = ''
-            else:
+            if(len(last_month_cost) > 0):
                 exp_cost = last_month_cost[0][0]
                 unit = last_month_cost[0][1]
+            else:
+                exp_cost = 0
+                unit = ''
         else:
             exp_cost = sum_cost + ((sum_cost / today.day) * number_of_days)
         response = {
@@ -217,9 +222,14 @@ def resource_usage():
 
         db = Database()
         res = db.select_usages('usages', period, metric)
-        data = [val[0] for val in res]
-        unit = res[-1][1]
-        created_at = res[-1][2].strftime("%Y-%m-%d %H:%M:%S")
+        if len(res) > 0:
+            data = [val[0] for val in res]
+            unit = res[-1][1]
+            created_at = res[-1][2].strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            data = [0]
+            unit = ''
+            created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         response = {
             "type": metric,
             "unit": unit,

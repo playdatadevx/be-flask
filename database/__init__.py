@@ -70,9 +70,15 @@ class Database:
                 'SELECT MAX(id) FROM metric')[0][0])
             for metric_id in range(1, metric_ids+1):
                 extra_sql = f' AND metric_id={metric_id}'
-                values.append(float(self.select_query(sql+extra_sql)[0][0]))
+                query_result = self.select_query(sql+extra_sql)[0][0]
+                if query_result is None:
+                    query_result = 0
+                values.append(float(query_result))
         else:
-            values.append(float(self.select_query(sql+extra_sql)[0][0]))
+            query_result = self.select_query(sql+extra_sql)[0][0]
+            if query_result is None:
+                query_result = 0
+            values.append(float(query_result))
         sql = f'INSERT INTO days_of_{table} ({Database.prop[table]}) VALUES '
         if table == 'usages':
             for metric_id in range(1, metric_ids+1):
@@ -101,9 +107,15 @@ class Database:
                 'SELECT MAX(id) FROM metric')[0][0])
             for metric_id in range(1, metric_ids+1):
                 extra_sql = f' AND metric_id={metric_id}'
-                values.append(float(self.select_query(sql+extra_sql)[0][0]))
+                query_result = self.select_query(sql+extra_sql)[0][0]
+                if query_result is None:
+                    query_result = 0
+                values.append(float(query_result))
         else:
-            values.append(float(self.select_query(sql+extra_sql)[0][0]))
+            query_result = self.select_query(sql+extra_sql)[0][0]
+            if query_result is None:
+                query_result = 0
+            values.append(float(query_result))
         sql = f'INSERT INTO months_of_{table} ({Database.prop[table]}) VALUES '
         if table == 'usages':
             for metric_id in range(1, metric_ids+1):
@@ -156,13 +168,18 @@ class Database:
         if table != period_table:
             sql = f'SELECT {Database.agg[table]}({table}) FROM {table} WHERE ' + extra_sql + \
                 '(DATE_FORMAT(NOW(),"%Y-%m-%d") = DATE_FORMAT(created_at,"%Y-%m-%d"))'
-            res = float(self.select_query(sql)[0][0])
+            query_result = self.select_query(sql)[0][0]
+            if query_result is None:
+                query_result = 0
+            res = float(query_result)
             if table == "cost" and "months" in period_table:
                 sql = f'SELECT {Database.agg[table]}({table}) FROM days_of_{table} WHERE ' + extra_sql + \
                     '(DATE_FORMAT(NOW(),"%Y-%m") = DATE_FORMAT(created_at,"%Y-%m"))'
-                res += float(self.select_query(sql)[0][0])
+                query_result = self.select_query(sql)[0][0]
+                if query_result is None:
+                    query_result = 0
+                res += float(query_result)
             item = tuple([key for key in [round(res, 2), Database.units.get(
                 table if metric == None else Database.metrics_ids[metric], None), now] if key != None])
             result.append(item)
-
         return result
