@@ -180,19 +180,19 @@ def exp_cost():
         elif keycloak_response.status_code == 401:
             return unauthorized_error
         database = Database()
-        result = database.select_expcost()
+        result = database.select_this_month_cost()
         today = datetime.today()
         number_of_days = calendar.monthrange(today.year, today.month)[1]
         sum_cost = result[0][0]
         unit = result[0][1]
-        if(sum_cost != int):
+        if(sum_cost != None):
             last_month_cost = database.select_last_month_cost()
             if(len(last_month_cost) > 0):
                 exp_cost = last_month_cost[0][0]
                 unit = last_month_cost[0][1]
             else:
-                exp_cost = 0
-                unit = ''
+                exp_cost = round((sum_cost / (today.hour +
+                                              ((today.day - 1) * 24))) * 24 * number_of_days, 2)
         else:
             exp_cost = sum_cost + ((sum_cost / today.day) * number_of_days)
         response = {

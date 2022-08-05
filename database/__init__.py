@@ -140,8 +140,8 @@ class Database:
         self.curs.execute(query)
         return self.curs.fetchall()
 
-    def select_expcost(self):
-        sql = 'SELECT SUM(cost), unit FROM days_of_cost WHERE created_at BETWEEN LAST_DAY(NOW() - interval 1 month) + interval 1 DAY AND NOW();'
+    def select_this_month_cost(self):
+        sql = 'SELECT SUM(total_cost.cost), unit FROM (SELECT cost, unit FROM days_of_cost WHERE created_at BETWEEN LAST_DAY(NOW() - interval 1 month) + interval 1 DAY AND NOW() UNION ALL SELECT cost, unit FROM cost WHERE created_at > CURRENT_DATE()) total_cost;'
         self.curs.execute(sql)
         result = self.curs.fetchall()
         self.conn.commit()
