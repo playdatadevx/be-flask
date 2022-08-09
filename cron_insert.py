@@ -21,6 +21,7 @@ def selecting():
 
 def calc_cost():
     ec2, ebs, eks, storage, node = selecting()
+    ebs = round(ebs/730,5)
     expr = ec2*node + ebs*(node*20+storage) + eks
     return expr
 
