@@ -8,25 +8,26 @@ from datetime import datetime
 today = datetime.now().date()
 logging.basicConfig(filename=f'./logs/{today}.log')
 
-db = Database()
-
 
 def selecting():
+    db = Database()
     price_sql = 'SELECT price FROM price ORDER BY created_at DESC LIMIT 0, 3'
     usages_sql = 'SELECT usages FROM usages WHERE metric_id IN (SELECT id FROM metric WHERE metric IN ("storage_usage","node_num"))and (created_at >= DATE_ADD(NOW(),INTERVAL -1 HOUR))'
     ec2, eks, ebs = db.select_query(price_sql)
     storage, node = db.select_query(usages_sql)
+    db.conn.close()
     return ec2[0], eks[0], ebs[0], storage[0], node[0]
 
 
 def calc_cost():
     ec2, eks, ebs, storage, node = selecting()
-    ebs = round(ebs/730,5)
+    ebs = round(ebs/730, 5)
     expr = ec2*node + ebs*(node*20+storage) + eks
     return expr
 
 
 def insert_cost():
+    db = Database()
     value = round(calc_cost(), 2)
     unit = 'USD'
     table = 'cost'
@@ -36,13 +37,16 @@ def insert_cost():
     logging.info('=======  Start  Insert cost To DATABASE  =======')
     db.insert_metric(table, item)
     logging.info('=======  Finished Inserting cost  =======')
+    db.conn.close()
     return
 
 
 def start_insert(metrics=metrics, op='first'):
+    db = Database()
     logging.info('=======  Start  Insert metrics To DATABASE  =======')
     for metric in metrics:
         table, item = insert_item(metric, op)
         db.insert_metric(table, item)
     logging.info('=======  Finished Inserting metrics  =======')
+    db.conn.close()
     return

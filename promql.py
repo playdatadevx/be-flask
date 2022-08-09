@@ -3,8 +3,6 @@ import requests
 from database import Database
 from datetime import datetime
 
-database = Database()
-
 today = datetime.now().date()
 url = os.environ.get('PROMETHEUS_SERVER')
 
