@@ -14,13 +14,13 @@ db = Database()
 def selecting():
     price_sql = 'SELECT price FROM price ORDER BY created_at DESC LIMIT 0, 3'
     usages_sql = 'SELECT usages FROM usages WHERE metric_id IN (SELECT id FROM metric WHERE metric IN ("storage_usage","node_num"))and (created_at >= DATE_ADD(NOW(),INTERVAL -1 HOUR))'
-    ec2, ebs, eks = db.select_query(price_sql)
+    ec2, eks, ebs = db.select_query(price_sql)
     storage, node = db.select_query(usages_sql)
-    return ec2[0], ebs[0], eks[0], storage[0], node[0]
+    return ec2[0], eks[0], ebs[0], storage[0], node[0]
 
 
 def calc_cost():
-    ec2, ebs, eks, storage, node = selecting()
+    ec2, eks, ebs, storage, node = selecting()
     ebs = round(ebs/730,5)
     expr = ec2*node + ebs*(node*20+storage) + eks
     return expr
