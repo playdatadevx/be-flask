@@ -28,7 +28,7 @@ realm = os.environ.get('REALM')
 client_id = os.environ.get('CLIENT_ID')
 client_secret = os.environ.get('CLENT_SECRET')
 secret_key = os.environ.get('SECRET_KEY')
-keyclock_endpoint = f'https://{keycloak_server}/auth/realms/{realm}/protocol/openid-connect'
+keyclock_endpoint = f'http://{keycloak_server}/auth/realms/{realm}/protocol/openid-connect'
 keyclock_userinfo_endpoint = keyclock_endpoint + '/userinfo'
 keyclock_login_endpoint = keyclock_endpoint + '/token'
 keyclock_logout_endpoint = keyclock_endpoint + '/logout'
@@ -67,6 +67,7 @@ def insert_price_to_db():
         'price', [ebs_price.price, created_at, ebs_price.unit, ebs_price.description])
     database.insert_metric(
         'price', [eks_price.price, created_at, eks_price.unit, eks_price.description])
+    database.conn.close()
 
 
 def insert_days_of_data_to_db():
@@ -74,6 +75,7 @@ def insert_days_of_data_to_db():
     database.insert_days('cost')
     database.insert_days('usages')
     database.insert_days('capacity')
+    database.conn.close()
 
 
 def insert_months_of_data_to_db():
@@ -81,6 +83,7 @@ def insert_months_of_data_to_db():
     database.insert_months('cost')
     database.insert_months('usages')
     database.insert_months('capacity')
+    database.conn.close()
 
 
 @app.route('/login', methods=['POST'])
@@ -242,6 +245,8 @@ def resource_usage():
     except Exception as e:
         logging.exception(e)
         return unexpected_error
+    finally:
+        db.conn.close()
     return response
 
 
@@ -271,6 +276,8 @@ def capacity():
     except Exception as e:
         logging.exception(e)
         return unexpected_error
+    finally:
+        db.conn.close()
     return response
 
 
