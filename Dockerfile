@@ -27,4 +27,7 @@ RUN sed -i "s|SECRET_KEY|$SECRET_KEY|g" credentials
 RUN sed -i "s|REGION|$REGION|g" config
 WORKDIR /app
 
+RUN rm /etc/localtime
+RUN ln -s /usr/share/zoneinfo/Asia/Seoul /etc/localtime
+
 CMD ["gunicorn","--bind","0.0.0.0:5000","app:app"]
