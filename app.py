@@ -6,7 +6,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from database import Database
 from dotenv import load_dotenv
 from flask import Flask, Response, request
-from price import Price, get_products
+from price import get_products
 from types import SimpleNamespace
 import logging
 from datetime import datetime
@@ -28,7 +28,7 @@ realm = os.environ.get('REALM')
 client_id = os.environ.get('CLIENT_ID')
 client_secret = os.environ.get('CLENT_SECRET')
 secret_key = os.environ.get('SECRET_KEY')
-keyclock_endpoint = f'http://{keycloak_server}/auth/realms/{realm}/protocol/openid-connect'
+keyclock_endpoint = f'https://{keycloak_server}/auth/realms/{realm}/protocol/openid-connect'
 keyclock_userinfo_endpoint = keyclock_endpoint + '/userinfo'
 keyclock_login_endpoint = keyclock_endpoint + '/token'
 keyclock_logout_endpoint = keyclock_endpoint + '/logout'
