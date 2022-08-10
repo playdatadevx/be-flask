@@ -245,8 +245,6 @@ def resource_usage():
     except Exception as e:
         logging.exception(e)
         return unexpected_error
-    finally:
-        db.conn.close()
     return response
 
 
@@ -276,8 +274,6 @@ def capacity():
     except Exception as e:
         logging.exception(e)
         return unexpected_error
-    finally:
-        db.conn.close()
     return response
 
 
